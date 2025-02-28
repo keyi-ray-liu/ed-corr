@@ -1,17 +1,53 @@
 const GB = 2^30
 
+
+struct Plunger
+    name :: String
+    biases :: Vector{Float64}
+    function Plunger(arr :: Int ; G1=0.0, G2=0.0, mid = 0.0, override=nothing, name=nothing)
+
+        if isnothing(name)
+            error("Plunger needs a name")
+        end 
+
+        if isnothing(override)
+            biases = ones( arr^2) .* mid
+            for first in 1:arr
+                biases[first] = G1
+            end 
+
+            for last in arr^2 - arr + 1: arr^2
+                biases[last] = G2
+            end 
+        else
+            if typeof(override) != Vector{Float64}
+                error("wrong type override")
+            end 
+
+            if len(override) != arr ^ 2 
+                error("wrong dim of override")
+            end 
+
+            biases = override
+        end 
+        new(name, biases)
+    end 
+end 
+
+
 # SD class in Julia
 struct SD
     L::Int
     N::Int
     arr::Int
     left_bias::Float64
-    arr_bias::Float64
+    arr_bias::Vector{Float64}
     right_bias::Float64
     source_coupling::Float64
     drain_coupling::Float64
     single::Bool
-    t::Float64
+    ω::Float64
+    arrhop ::Float64
     contact_source::Int
     contact_drain::Int
     arr_source::Vector{Int}
@@ -19,15 +55,15 @@ struct SD
     arr_drain::Vector{Int}
     drain_scaling::Vector{Float64}
 
-    function SD(L::Int, N::Int, arr::Int, left_bias::Float64, arr_bias::Float64, right_bias::Float64, source_coupling::Float64, drain_coupling::Float64; single::Bool=false, t::Float64=-1.0)
+    function SD(L::Int, N::Int, arr::Int, left_bias::Float64, arr_bias::Vector{Float64}, right_bias::Float64, source_coupling::Float64, drain_coupling::Float64; single::Bool=false, arrhop ::Float64 = 1.0, ω::Float64=-1.0)
         contact_source = L 
         contact_drain = L + arr^2 + 1
-        arr_source, source_scaling, arr_drain, drain_scaling = setup_connections(L, arr, single, contact_source, contact_drain)
-        new(L, N, arr, left_bias, arr_bias, right_bias, source_coupling, drain_coupling, single, t, contact_source, contact_drain, arr_source, source_scaling, arr_drain, drain_scaling)
+        arr_source, source_scaling, arr_drain, drain_scaling = setup_connections(arr, single, contact_source, contact_drain)
+        new(L, N, arr, left_bias, arr_bias, right_bias, source_coupling, drain_coupling, single, ω, arrhop, contact_source, contact_drain, arr_source, source_scaling, arr_drain, drain_scaling)
     end
 
     # Function to set up source and drain connections based on single flag and array size
-    function setup_connections(L::Int, arr::Int, single::Bool, contact_source::Int, contact_drain::Int)
+    function setup_connections( arr::Int, single::Bool, contact_source::Int, contact_drain::Int)
         if single
             arr_source = [contact_source + 1 + arr * ((arr - 1) ÷ 2)]
             source_scaling = [1.0]
@@ -49,7 +85,8 @@ end
 
 # Function to set up the Hamiltonian matrix
 function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
-    t = sd.t
+    ω = sd.ω
+    arrhop = sd.arrhop
     L = sd.L
     arr = sd.arr
     arr_size = arr^2
@@ -70,7 +107,7 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
 
     # Left section
     for i in 1:(L - 1)
-        M[i + 1, i] = M[i, i + 1] = t
+        M[i + 1, i] = M[i, i + 1] = ω
         M[i, i] = left
     end
     M[L, L] = left
@@ -78,16 +115,16 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
     # Coupling between sections
     for i in 1:length(arr_source)
         site = arr_source[i]
-        M[contact_source, site] = M[site, contact_source] = source_coupling * t * source_scaling[i]
+        M[contact_source, site] = M[site, contact_source] = source_coupling * source_scaling[i]
     end
     for i in 1:length(arr_drain)
         site = arr_drain[i]
-        M[contact_drain, site] = M[site, contact_drain] = drain_coupling * t * drain_scaling[i]
+        M[contact_drain, site] = M[site, contact_drain] = drain_coupling *  drain_scaling[i]
     end
 
     # Right section
     for i in (L + arr_size + 1):(total - 1)
-        M[i + 1, i] = M[i, i + 1] = t
+        M[i + 1, i] = M[i, i + 1] = ω
         M[i, i] = right
     end
     M[total, total] = right
@@ -96,14 +133,14 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
     for i in 1:arr
         for j in 1:arr
             idx = (i - 1) * arr + j + L
-            M[idx, idx] += cent
+            M[idx, idx] += cent[idx - L]
             if i < arr
-                M[idx, idx + arr] = t
-                M[idx + arr, idx] = t
+                M[idx, idx + arr] = arrhop
+                M[idx + arr, idx] = arrhop
             end
             if j < arr
-                M[idx, idx + 1] = t
-                M[idx + 1, idx] = t
+                M[idx, idx + 1] = arrhop
+                M[idx + 1, idx] = arrhop
             end
         end
     end
