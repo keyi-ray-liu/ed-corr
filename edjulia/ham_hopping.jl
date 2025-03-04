@@ -1,4 +1,4 @@
-function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fermion, Geo :: Geometry)
+function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fermion, Geo :: Geometry; local_shift = 0)
 
     hopdict = Geo.hopdict
 
@@ -6,6 +6,10 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fer
         for (from :: Int, tos :: Vector) in hopdict
             for to in tos
                 
+
+                from += local_shift
+                to += local_shift
+
                 @assert from < to
 
                 # c^+ c only acts on larger
@@ -27,14 +31,15 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fer
 end 
 
 
-function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Electron, Geo :: Geometry)
+function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Electron, Geo :: Geometry; local_shift = 0, spin_shift = Geo.L)
 
     hopdict = Geo.hopdict
-    L = Geo.L
-
     for (basis :: Tuple, ind1 :: Int) in basis_dict
         for (from :: Int, tos :: Vector) in hopdict
             for to in tos
+                
+                from += local_shift
+                to += local_shift
 
                 @assert from < to
 
@@ -44,18 +49,18 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Ele
                     newbasis[to], newbasis[from] = basis[from], basis[to]
 
                     ind2 = basis_dict[Tuple(newbasis)]
-                    hop =  Geo.t * jordanwigner(Up(), basis, from, to, L)
+                    hop =  Geo.t * jordanwigner(Up(), basis, from, to, spin_shift)
                     M[ind1, ind2] += hop
                     M[ind2, ind1] += hop
                 end 
 
                 #dn
-                if basis[from + L] < basis[to + L]
+                if basis[from + spin_shift] < basis[to + spin_shift]
                     newbasis =  collect(basis)
-                    newbasis[to + L], newbasis[from + L] = basis[from + L], basis[to + L]
+                    newbasis[to + spin_shift], newbasis[from + spin_shift] = basis[from + spin_shift], basis[to + spin_shift]
 
                     ind2 = basis_dict[Tuple(newbasis)]
-                    hop =  Geo.t * jordanwigner(Dn(), basis, from, to, L)
+                    hop =  Geo.t * jordanwigner(Dn(), basis, from, to, spin_shift)
                     M[ind1, ind2] += hop
                     M[ind2, ind1] += hop
                 end 
@@ -66,6 +71,17 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Ele
     end 
 
     return M
+
+end 
+
+
+function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, Par::Electron, sd :: SD)
+
+    # S, D hopping indices are faithful, no need to shift
+    M = hopping!(basis_dict, M, Par, sd.S ; local_shift = 0, spin_shift = sd.L)
+    M = hopping!(basis_dict, M, Par, sd.D ; local_shift = 0, spin_shift = sd.L)
+    M = hopping!(basis_dict, M, Par, sd.A ; local_shift = sd.S.L + sd.D.L, spin_shift = sd.L)
+
 
 end 
 

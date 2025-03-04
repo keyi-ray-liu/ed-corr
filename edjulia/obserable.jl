@@ -9,7 +9,6 @@ function expectation(qn::QN, Par::Particle, Geo::Geometry, U, Obs::Observable)
     basis_mat = hcat([collect(arr) for arr in basis]...)
     basis_mat .-= 1
 
-    @show typeof(basis_mat)
     expectation(basis_mat, Par, Geo, U, Obs)
 
 end 
@@ -47,5 +46,6 @@ function expectation(basis_mat :: Union{Matrix, SparseMatrixCSC}, Par::Electron,
         writedlm(io, occdn)
     end
 
+    return occup, occdn
 
 end 

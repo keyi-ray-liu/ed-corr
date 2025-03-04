@@ -3,13 +3,17 @@ abstract type Particle end
 abstract type Geometry end
 abstract type Spin end
 abstract type Observable end
-
+abstract type Parameter end
+abstract type drivingmode end
 
 struct Up <: Spin end
 struct Dn <: Spin end
 
 
-
+struct LoadLeft <: drivingmode 
+    init :: Number
+    dyna :: Number
+end
 
 
 struct Conserved <: QN
@@ -38,11 +42,14 @@ struct Line <: Geometry
     L :: Int
     hopdict :: Dict
     t :: Float64
-    function Line(L :: Int; t = -1.0)
+    function Line(L :: Int; t = -1.0, hopdict = nothing)
         #only hops to later in the chain
-        hopdict = Dict(
-            i => [i + 1] for i in 1:L - 1
-        )
+
+        if !(typeof(hopdict)  <: Dict)
+            hopdict = Dict(
+                i => [i + 1] for i in 1:L - 1
+            )
+        end 
         new(L, hopdict, t)
     end 
 end 
@@ -76,26 +83,39 @@ end
 
 get_name(Geo :: Line) = "Line" * string(Geo.L)
 get_name(Geo:: TwoD) = "$(string(Geo.X))x$(string(Geo.Y))-single"
+get_name(Geo::SD) = "SD$(get_name(Geo.A))"
 
 
-
+# the structure is S, D, A
 struct SD <: Geometry
     S :: Line
     D :: Line
     A :: TwoD
     L :: Int
-    AS :: Array
-    AD :: Array
-    function SD(S, D, A; AS = [4], AD = [6])
-        L = S.L + D.L + A.L
-        new(S, D, A, L, AS, AD)
+    function SD(Ls, Ld, X, Y; AS = [4], AD = [6])
+        L = Ls + Ld + X * Y
+
+        S = Line(Ls; hopdict = Dict( Ls => [ val + Ls + Ld for val in AS]))
+        D = Line(Ls; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]))
+        A = TwoD(X, Y)
+        new(S, D, A, L)
     end 
 end 
 
-struct Coulomb 
+struct Coulomb  <: Parameter
     ee :: Float64
     ne :: Float64
     ζ_ee :: Float64
     ζ_ne :: Float64
     exch :: Float64
+end 
+
+
+struct Bias <: Parameter
+    val :: Array{Number}
+end 
+
+struct TimeControl <: Parameter
+    fin :: Number
+    dt :: Number
 end 

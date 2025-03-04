@@ -10,6 +10,10 @@ function coulomb!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, par::
 end 
 
 
+
+
+
+
 function ee(basis, ::Fermion, Coul::Coulomb, Geo :: Geometry)
 
     val = 0
@@ -77,7 +81,7 @@ function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
 end 
 
 
-
+distance(ind1, ind2, ::SD) = 0
 distance(ind1, ind2, ::Line) = abs(ind1 - ind2)
 function distance(ind1, ind2, Geo::TwoD)
 
