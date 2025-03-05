@@ -25,10 +25,13 @@ function gen_ham(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias
     #M = zeros(dim, dim)
 
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+
     M = hopping!(basis_dict, M, Par, Geo)
     M = coulomb!(basis_dict, M, Par, Coul, Geo)
     M = hubbard(basis_dict, M, Par, Geo)
     M = onsite!(basis_dict, M, Par, bias, Geo)
+
 
     @info "setup complete"
     #@show M

@@ -16,6 +16,13 @@ struct LoadLeft <: drivingmode
 end
 
 
+struct LoadBoth <: drivingmode
+
+    init :: Number
+    dyna :: Number
+end 
+
+
 struct Conserved <: QN
 end 
 
@@ -81,9 +88,7 @@ struct TwoD <: Geometry
     end 
 end 
 
-get_name(Geo :: Line) = "Line" * string(Geo.L)
-get_name(Geo:: TwoD) = "$(string(Geo.X))x$(string(Geo.Y))-single"
-get_name(Geo::SD) = "SD$(get_name(Geo.A))"
+
 
 
 # the structure is S, D, A
@@ -92,15 +97,19 @@ struct SD <: Geometry
     D :: Line
     A :: TwoD
     L :: Int
-    function SD(Ls, Ld, X, Y; AS = [4], AD = [6])
+    function SD(Ls, Ld, X, Y; AS = [4], AD = [6], scoup = 1.0, dcoup = 1.0)
         L = Ls + Ld + X * Y
 
-        S = Line(Ls; hopdict = Dict( Ls => [ val + Ls + Ld for val in AS]))
-        D = Line(Ls; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]))
+        S = Line(Ls; hopdict = Dict( Ls => [ val + Ls + Ld for val in AS]), t = scoup)
+        D = Line(Ls; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]), t = dcoup)
         A = TwoD(X, Y)
         new(S, D, A, L)
     end 
 end 
+
+get_name(Geo :: Line) = "Line" * string(Geo.L)
+get_name(Geo:: TwoD) = "$(string(Geo.X))x$(string(Geo.Y))-single"
+get_name(Geo::SD) = "SD$(get_name(Geo.A))"
 
 struct Coulomb  <: Parameter
     ee :: Float64

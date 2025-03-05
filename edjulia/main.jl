@@ -6,6 +6,7 @@ using Distributed
 using BenchmarkTools
 using Combinatorics
 using ArnoldiMethod
+#using KrylovKit
 using SparseArrays
 
 include("structs.jl")
@@ -22,8 +23,9 @@ include("ham_onsite.jl")
 
 
 #task()
-time_evolve()
-
+#time_evolve()
+#GS()
+scan()
 
 
 
@@ -32,5 +34,5 @@ time_evolve()
 # work with ED with Electron after JW fix (F_i vs F_j)
 
 # -2.916056032356521
-# -4.620045112862984
-# -2.8284271247460206
+# 3Up4DnU100.0 -4.620045112862984
+# 4Up4DnU100.0 -2.8284271247460206   delta = -1.79161798
