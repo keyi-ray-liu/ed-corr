@@ -1,4 +1,4 @@
-function _hopping(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fermion, hopdict, t, local_shift)
+function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Fermion, hopdict, t, local_shift)
 
 
     for (basis :: Tuple, ind1 :: Int) in basis_dict
@@ -30,7 +30,7 @@ function _hopping(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fer
 end 
 
 
-function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fermion, Geo :: Geometry; local_shift = 0)
+function hopping!(basis_dict :: Dict, M :: SparseMatrixCSC, ::Fermion, Geo :: Geometry; local_shift = 0)
 
     hopdict = Geo.hopdict
     t = Geo.T
@@ -42,7 +42,7 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Fer
 end 
 
 # generates the hopping matrix
-function _hopping(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Electron, hopdict::Dict, t:: Number, local_shift::Number, spin_shift::Number ; up=true, dn = true, herm = true )
+function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Electron, hopdict::Dict, t:: Number, local_shift::Number, spin_shift::Number ; up=true, dn = true, herm = true )
 
     for (basis :: Tuple, ind1 :: Int) in basis_dict
         for (from :: Int, tos :: Vector) in hopdict
@@ -92,7 +92,7 @@ function _hopping(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, ::Ele
 end 
 
 
-function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, Par::Electron, Geo :: Geometry; local_shift = 0, spin_shift = Geo.L)
+function hopping!(basis_dict :: Dict, M :: SparseMatrixCSC, Par::Electron, Geo :: Geometry; local_shift = 0, spin_shift = Geo.L)
 
     hopdict = Geo.hopdict
     t = Geo.t
@@ -104,7 +104,7 @@ function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, Par::
 end 
 
 
-function hopping!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, Par::Electron, sd :: SD)
+function hopping!(basis_dict :: Dict, M :: SparseMatrixCSC, Par::Electron, sd :: SD)
 
     # S, D hopping indices are faithful, no need to shift
     M = hopping!(basis_dict, M, Par, sd.S ; local_shift = 0, spin_shift = sd.L)

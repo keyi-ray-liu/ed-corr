@@ -19,18 +19,15 @@
 
 
 
-function _solve(h, Geo :: Geometry, Par :: Particle; nev=min(2, length(h)))
+function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_diag(), nev=min(2, length(h)))
 
     @assert h == transpose(h)
-    h = Hermitian(h)
+    
     #eigen_h = @time eigen(h, 1:min(1, length(h)))
 
-    @time eigen_h, history = partialschur(h, nev =nev, tol=1e-7, which=:SR, restarts=1000)
+    w, U = _diag(h, method, nev)
 
-    @show w = real(eigen_h.eigenvalues)
-    U = eigen_h.Q
     @show size(U)
-    @show history
 
     # w, U, info = eigsolve(h,  nev, :SR)
 
@@ -65,17 +62,22 @@ function _time_evolve(qn::QN, Geo_init::Geometry, Geo_dyna::Geometry, Par::Parti
     h_dyna = gen_ham(qn, Par, Geo_dyna, Coul, bias_dyna )
     h_init = gen_ham(qn, Par, Geo_init, Coul, bias_init)
 
-    _, v = _solve(h_init, Geo_init, Par; nev=1)
-    w, U = _solve(h_dyna, Geo_dyna, Par; nev=min(800, size(v, 1) - 2))
+    method =  size(h_dyna, 1) < 5000 ? full_diag() : arnoldi()
+
+    _, v = _solve(h_init, Geo_init, Par; method = arnoldi(), nev=1)
+    w, U = _solve(h_dyna, Geo_dyna, Par; method = method, nev=min(1000, size(v, 1) - 2))
 
     # we find the coefficients of the all the overlaps, then explicitly time_evolve
 
-    coeffs = vec(conj(transpose(v)) * U)
+    coeffs = vec(conj(transpose(v[:, 1])) * U)
     E = exp.(im * w * times')
 
     @show size(coeffs)
     @show size(E)
-    @show sum( abs2, coeffs)
+
+    if sum( abs2, coeffs) < 0.99
+        @warn "sum smaller than 0.99"
+    end 
 
 
     newcoeffs = coeffs' .* E'
@@ -86,7 +88,7 @@ function _time_evolve(qn::QN, Geo_init::Geometry, Geo_dyna::Geometry, Par::Parti
 
 
     for ob in obs
-        expectation(qn, Par, Geo_dyna, V, ob; filestr =filestr)
+        @time expectation(qn, Par, Geo_dyna, V, ob; filestr =filestr)
     end 
 
 
@@ -102,3 +104,26 @@ function _time_evolve(qn::QN, Geo_init::Geometry, Geo_dyna::Geometry, Par::Parti
 
 end 
 
+
+
+function _diag(h, ::full_diag, nev::Int)
+
+    k = Matrix(h)
+    @time w, U = eigen(k)
+
+    return w, U
+end 
+
+function _diag(h, ::arnoldi, nev)
+
+    h = Hermitian(h)
+
+    @time eigen_h, history = partialschur(h, nev =nev, tol=1e-7, which=:SR, restarts=1000)
+
+    @show history
+
+    w = real(eigen_h.eigenvalues)
+    U = eigen_h.Q
+
+    return w, U
+end 

@@ -1,4 +1,4 @@
-function coulomb!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, par::Particle, Coul :: Coulomb, Geo :: Geometry)
+function coulomb!(basis_dict :: Dict, M :: SparseMatrixCSC, par::Particle, Coul :: Coulomb, Geo :: Geometry)
 
     for (basis :: Tuple, ind :: Int) in basis_dict
 

@@ -1,3 +1,17 @@
+
+using Pkg
+
+for strs in [
+    #"Combinatorics",
+    #"ArnoldiMethod"
+    ]
+
+    Pkg.add(strs)
+end 
+
+
+
+
 using LinearAlgebra
 using Random
 using Dates

@@ -5,10 +5,14 @@ abstract type Spin end
 abstract type Observable end
 abstract type Parameter end
 abstract type drivingmode end
+abstract type DiagMethod end
 
 struct Up <: Spin end
 struct Dn <: Spin end
 
+
+struct full_diag <: DiagMethod end 
+struct arnoldi <: DiagMethod end 
 
 struct LoadLeft <: drivingmode 
     init :: Number

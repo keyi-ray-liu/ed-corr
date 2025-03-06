@@ -1,4 +1,4 @@
-function onsite!(basis_dict :: Dict, M :: Union{Matrix, SparseMatrixCSC}, par::Particle, bias :: Bias, Geo :: Geometry)
+function onsite!(basis_dict :: Dict, M :: SparseMatrixCSC, par::Particle, bias :: Bias, Geo :: Geometry)
 
     for (basis:: Tuple, ind::Int) in basis_dict
 

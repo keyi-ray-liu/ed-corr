@@ -3,6 +3,7 @@ function GS()
     Us = 0:100
     Ns = [
         (0, 1),
+        (0, 2),
         (1, 1),
         (1, 2),
         (0, 3),
@@ -129,7 +130,7 @@ function time_evolve(qn::QN, Par :: Particle,  Geo_init::SD, Geo_dyna::SD, Coul:
     bias_init = Bias(vcat([ mode.init for _ in 1:Geo_init.S.L], [ -mode.init for _ in 1:Geo_init.D.L], [ 0 for _ in 1:Geo_init.A.L]))
     bias_dyna = Bias(vcat([0 for _ in 1:Geo_dyna.S.L + Geo_dyna.D.L], [mode.dyna for _ in 1:Geo_dyna.A.L]))
 
-    timecontrol = TimeControl(1000, 0.1)
+    timecontrol = TimeControl(1000, 0.25)
 
     @show bias_init
     @show bias_dyna
@@ -159,6 +160,20 @@ end
 
 function scan()
 
+    if length(ARGS) == 0
+        Ns = [
+            #(0, 0),
+            #(1, 1),
+            (2, 0),
+            #(1, 6),
+            #(3, 4)
+        ]
+    else
+        Ns = [collect(map( x -> parse(Int, x), ARGS))]
+    end 
+
+    @show Ns
+
 
     re = readdlm("ref/energyscan")
     refdict = Dict()
@@ -171,6 +186,7 @@ function scan()
         if Ndn != Nup
             refdict[ (Int(Ndn), Int(Nup), U)] = gs
         end 
+
     end 
 
 
@@ -181,13 +197,7 @@ function scan()
         refdict[(0, 0, U)] = 0.0
     end 
 
-    Ns = [
-        (0, 0),
-        (1, 1),
-        (2, 0),
-        #(1, 6),
-        #(3, 4)
-    ]
+
 
     multipliers = -2:0.2:2
     scs = [-1.0, -0.5, -0.1, -0.01, -0.001]
@@ -195,6 +205,7 @@ function scan()
 
     for (Nup, Ndn) in Ns
         for U in Us
+            #U = Float64(U)
             Threads.@threads for multiplier in multipliers
                 for sc in scs
                     for dc in dcs

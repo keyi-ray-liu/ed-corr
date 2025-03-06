@@ -18,7 +18,7 @@ function expectation(qn::QN, Par::Particle, Geo::Geometry, U, ::Occupation; file
     return occup, occdn
 end 
 
-function _expectation(basis_mat :: Union{Matrix, SparseMatrixCSC}, ::Electron,  Geo :: Geometry , V, ::Occupation; filestr="", save=true)
+function _expectation(basis_mat :: Matrix, ::Electron,  Geo :: Geometry , V, ::Occupation; filestr="", save=true)
 
     L = size(basis_mat, 1)
 
@@ -40,11 +40,11 @@ function _expectation(basis_mat :: Union{Matrix, SparseMatrixCSC}, ::Electron,  
 
     if save
         open( "$(filestr)occup", "w") do io
-            writedlm(io, occup)
+            writedlm(io, round.(occup, sigdigits=5))
         end
 
         open( "$(filestr)occdn", "w") do io
-            writedlm(io, occdn)
+            writedlm(io, round.(occdn, sigdigits=5))
         end
     end
 
@@ -83,11 +83,11 @@ function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation;
     @show hopdict
     
 
-    corr_mat_up = zeros( size(basis, 1), size(basis, 1))
+    corr_mat_up = spzeros( size(basis, 1), size(basis, 1))
     corr_mat_up = _hopping(basis_dict, corr_mat_up, Par, hopdict, 1.0, 0, Geo.L; dn=false, herm=false)
 
 
-    corr_mat_dn = zeros( size(basis, 1), size(basis, 1))
+    corr_mat_dn = spzeros( size(basis, 1), size(basis, 1))
     corr_mat_dn = _hopping(basis_dict, corr_mat_dn, Par, hopdict, 1.0, 0, Geo.L; up=false, herm=false)
 
     corr = _expectation(corr_mat_up, corr_mat_dn, Par, Geo, U, corr; filestr=filestr, save=save)
@@ -97,7 +97,7 @@ function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation;
 
 end 
 
-function _expectation(corr_mat_up :: Union{Matrix, SparseMatrixCSC}, corr_mat_dn :: Union{Matrix, SparseMatrixCSC}, ::Electron,  Geo :: Geometry , V, ::Correlation; filestr="", save=true)
+function _expectation(corr_mat_up :: SparseMatrixCSC, corr_mat_dn :: SparseMatrixCSC, ::Electron,  Geo :: Geometry , V, ::Correlation; filestr="", save=true)
 
     corr = zeros( Complex, size(V, 2), 2)
 
@@ -119,7 +119,7 @@ function _expectation(corr_mat_up :: Union{Matrix, SparseMatrixCSC}, corr_mat_dn
 
     if save
         open( "$(filestr)corr", "w") do io
-            writedlm(io, corr)
+            writedlm(io, round.(corr, sigdigits=5))
         end
 
     end 
@@ -139,13 +139,17 @@ function expectation(qn::QN, Par::Electron, sd::SD, U, current::Current; filestr
     corr_s = 2  * imag.(corr_s)
     corr_d = - 2  * imag.(corr_d)
 
+    current = hcat( corr_s[:, 1], corr_d[:, 1], corr_s[:, 2], corr_d[:, 2])
+
     if save
 
         open( "$(filestr)currentSD", "w") do io
-            writedlm(io, hcat( corr_s[:, 1], corr_d[:, 1], corr_s[:, 2], corr_d[:, 2]))
+            writedlm(io, round.(current, sigdigits=5) )
         end
 
     end 
+
+    return current
 
 end 
 
