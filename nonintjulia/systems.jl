@@ -1,6 +1,19 @@
 const GB = 2^30
 
 
+
+
+struct Connector
+    arr_source :: Array
+    source_scaling :: Array
+    arr_drain :: Array
+    drain_scaling :: Array
+    name :: String
+    function Connector(; arr_source = [4], arr_drain = [6], source_scaling = [1.0], drain_scaling = [1.0], name = "46")
+        new(arr_source, source_scaling, arr_drain, drain_scaling, name )
+    end
+end 
+
 struct Plunger
     name :: String
     biases :: Vector{Float64}
@@ -45,8 +58,7 @@ struct SD
     right_bias::Float64
     source_coupling::Float64
     drain_coupling::Float64
-    single::Bool
-    ω::Float64
+    t0::Float64
     arrhop ::Float64
     contact_source::Int
     contact_drain::Int
@@ -55,37 +67,26 @@ struct SD
     arr_drain::Vector{Int}
     drain_scaling::Vector{Float64}
 
-    function SD(L::Int, N::Int, arr::Int, left_bias::Float64, arr_bias::Vector{Float64}, right_bias::Float64, source_coupling::Float64, drain_coupling::Float64; single::Bool=false, arrhop ::Float64 = 1.0, ω::Float64=-1.0)
+    function SD(L::Int, N::Int, arr::Int, left_bias::Float64, arr_bias::Vector{Float64}, right_bias::Float64, source_coupling::Float64, drain_coupling::Float64; con :: Connector = Connector(), arrhop ::Float64 = 1.0, t0::Float64=-1.0)
         contact_source = L 
         contact_drain = L + arr^2 + 1
-        arr_source, source_scaling, arr_drain, drain_scaling = setup_connections(arr, single, contact_source, contact_drain)
-        new(L, N, arr, left_bias, arr_bias, right_bias, source_coupling, drain_coupling, single, ω, arrhop, contact_source, contact_drain, arr_source, source_scaling, arr_drain, drain_scaling)
+        arr_source, source_scaling, arr_drain, drain_scaling = setup_connections(con, contact_source, contact_drain)
+        new(L, N, arr, left_bias, arr_bias, right_bias, source_coupling, drain_coupling, t0, arrhop, contact_source, contact_drain, arr_source, source_scaling, arr_drain, drain_scaling)
     end
 
     # Function to set up source and drain connections based on single flag and array size
-    function setup_connections( arr::Int, single::Bool, contact_source::Int, contact_drain::Int)
-        if single
-            arr_source = [contact_source + 1 + arr * ((arr - 1) ÷ 2)]
-            source_scaling = [1.0]
-            arr_drain = [contact_drain - 1 - arr * ((arr - 1) ÷ 2)]
-            drain_scaling = [1.0]
-        else
-            arr_source = [contact_source + i for i in 1:arr:arr^2]
-            source_scaling = ones(Float64, arr)
-            arr_drain = [contact_source + j for j in arr:arr:arr^2]
-            drain_scaling = ones(Float64, arr)
-            if arr == 3
-                source_scaling[2] = 2
-                drain_scaling[2] = 2
-            end
-        end
-        return arr_source, source_scaling, arr_drain, drain_scaling
+    function setup_connections(  con :: Connector, contact_source::Int, contact_drain::Int)
+
+
+        arr_source = con.arr_source .+ contact_source   
+        arr_drain = con.arr_drain .+ contact_source
+        return arr_source, con.source_scaling, arr_drain, con.drain_scaling
     end
 end
 
 # Function to set up the Hamiltonian matrix
 function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
-    ω = sd.ω
+    t0 = sd.t0
     arrhop = sd.arrhop
     L = sd.L
     arr = sd.arr
@@ -107,7 +108,7 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
 
     # Left section
     for i in 1:(L - 1)
-        M[i + 1, i] = M[i, i + 1] = ω
+        M[i + 1, i] = M[i, i + 1] = t0
         M[i, i] = left
     end
     M[L, L] = left
@@ -124,7 +125,7 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
 
     # Right section
     for i in (L + arr_size + 1):(total - 1)
-        M[i + 1, i] = M[i, i + 1] = ω
+        M[i + 1, i] = M[i, i + 1] = t0
         M[i, i] = right
     end
     M[total, total] = right
@@ -151,9 +152,7 @@ function set_hij(sd::SD, path::String, mod::String; savehij::Bool=false)
 
     if savehij
         open(path * "/M" * mod * ".txt", "w") do f
-            for row in eachrow(M)
-                println(f, join(row, " "))
-            end
+            writedlm(f, M)
         end
     end
 
@@ -170,16 +169,16 @@ end
 
 
 # Helper function to save results
-function save_result(::SD, currents::Array{Float64, 2}, occs::Array{Float64, 2}, CCs::Array{ComplexF64, 3}, timestep::Float64, fin::Float64, path::String)
+function save_result(::SD, currents::Array{Float64, 2}, occs::Array{Float64, 2}, CCs::Array{ComplexF64, 3}, time, path::String)
     mkpath(path)
 
     open(path * "/times", "w") do f
-        writedlm(f, 0:timestep:fin)
+        writedlm(f, time)
     end
     open(path * "/currentSD", "w") do f
-        writedlm(f, currents)
+        writedlm(f, round.(currents; sigdigits=5))
     end
     open(path * "/occ", "w") do f
-        writedlm(f, occs)
+        writedlm(f, round.(occs; sigdigits=5))
     end
 end

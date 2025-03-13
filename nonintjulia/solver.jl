@@ -12,7 +12,7 @@ function solve!(::BiasSolver, h0::Matrix{Float64}, h::Matrix{Float64}, timestep:
     U0 = eigen_h0.vectors
 
     #slide(U0)
-
+    @show size(h)
     eigen_h = eigen(h)
     w = eigen_h.values
     U = eigen_h.vectors
@@ -78,12 +78,16 @@ end
 
 # Current calculation function
 function current(sd::SD, CCs::Union{Matrix, Array{ComplexF64, 3}}; offset=0)
-    currents = zeros(Float64, sd.arr * 2, size(CCs, 1))
+    currents = zeros(Float64, size(CCs, 1), length(sd.arr_source) + length(sd.arr_drain))
     contact_source = sd.contact_source - offset
     contact_drain = sd.contact_drain - offset
     arr_source = sd.arr_source .- offset
     arr_drain = sd.arr_drain .- offset
 
+    source_coupling = sd.source_coupling
+    drain_coupling = sd.drain_coupling
+
+    @show contact_source, arr_source, contact_drain, arr_drain
     
 
     for i in 2:size(CCs, 1)  # Start from 2 as the initial state does not contribute to the current
@@ -91,16 +95,16 @@ function current(sd::SD, CCs::Union{Matrix, Array{ComplexF64, 3}}; offset=0)
             arr = arr_source[j]
 
             #@show "source", contact_source, arr
-            cc = -2 * imag(CCs[i, contact_source, arr])
-            currents[j, i] = cc
+            cc = -2  * abs(source_coupling) * imag(CCs[i, contact_source, arr])
+            currents[i,j ] = cc
         end
 
         for k in 1:length(arr_drain)
             arr = arr_drain[k]
 
             #@show "drain", arr, contact_drain
-            cc = -2 * imag(CCs[i, arr, contact_drain]) 
-            currents[k + length(arr_source), i] = cc
+            cc = -2  * abs(drain_coupling)* imag(CCs[i, arr, contact_drain]) 
+            currents[i, k + length(arr_source)] = cc
         end
     end
 

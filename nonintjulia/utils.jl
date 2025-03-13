@@ -27,3 +27,13 @@ function slide(M)
 
     display(fig)
 end 
+
+
+function gradient(x, y)
+    itp = linear_interpolation(x, y)
+
+    val = Interpolations.gradient.(Ref(itp), x)
+
+    val = [ v[1] for v in val]
+    return val
+end 
