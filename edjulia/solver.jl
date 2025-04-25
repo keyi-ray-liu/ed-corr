@@ -21,6 +21,7 @@
 
 function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_diag(), nev=min(2, length(h)))
 
+    @show nev
     @assert h == transpose(h)
     
     #eigen_h = @time eigen(h, 1:min(1, length(h)))
@@ -111,7 +112,7 @@ function _diag(h, ::full_diag, nev::Int)
     k = Matrix(h)
     @time w, U = eigen(k)
 
-    return w, U
+    return w[1:nev], U[:, 1:nev]
 end 
 
 function _diag(h, ::arnoldi, nev)
@@ -126,4 +127,33 @@ function _diag(h, ::arnoldi, nev)
     U = eigen_h.Q
 
     return w, U
+end 
+
+
+function _odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep)
+
+    h = gen_ham(qn, Par, Geo, Coul, bias )
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+
+
+    inj_source = cdag(basis_dict, Par, Geo, op.source_site)
+    dep_source = c(basis_dict, Par, Geo, op.source_site)
+
+    inj_drain= cdag(basis_dict, Par, Geo, op.drain_site)
+    dep_drain = c(basis_dict, Par, Geo, op.drain_site)
+
+    ops = [inj_source, dep_source, inj_drain, dep_drain]
+    γs = [ op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain]
+
+    p = [h, ops, γs]
+    tspan = (0, 100)
+
+    
+    prob = ODEProblem(lindbladian, ρ0, tspan, p)
+    sol = solve(prob, Tsit5(), reltol = 1e-8, abstol = 1e-8)
+
+    return sol
+
 end 

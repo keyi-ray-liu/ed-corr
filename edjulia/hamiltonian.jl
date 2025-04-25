@@ -1,15 +1,16 @@
 
 
-function gen_ham(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb )
+function gen_ham(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias)
 
     basis = gen_basis(qn, Par, Geo)
 
     dim = length(basis)
-    M = zeros(dim, dim)
+    M = spzeros(dim, dim)
 
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
     M = hopping!(basis_dict, M, Par, Geo)
     M = coulomb!(basis_dict, M, Par, Coul, Geo)
+    M = onsite!(basis_dict, M, Par, bias, Geo)
 
     #@show M
     return M

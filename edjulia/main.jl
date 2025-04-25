@@ -16,12 +16,15 @@ using LinearAlgebra
 using Random
 using Dates
 using DelimitedFiles
+using DifferentialEquations
 using Distributed
 using BenchmarkTools
 using Combinatorics
 using ArnoldiMethod
 #using KrylovKit
 using SparseArrays
+
+using Plots
 
 include("structs.jl")
 include("obserable.jl")
@@ -33,13 +36,20 @@ include("solver.jl")
 include("ham_coulomb.jl")
 include("ham_hubbard.jl")
 include("ham_onsite.jl")
+include("densitymatrix.jl")
+include("utils.jl")
 
 
 
 #task()
 #time_evolve()
 #GS()
-scan()
+#scan()
+
+
+#test()
+#markov_test()
+GG()
 
 
 
@@ -50,3 +60,7 @@ scan()
 # -2.916056032356521
 # 3Up4DnU100.0 -4.620045112862984
 # 4Up4DnU100.0 -2.8284271247460206   delta = -1.79161798
+
+
+
+# 

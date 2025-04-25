@@ -16,22 +16,6 @@ function GS()
         (4, 4)
     ]
 
-    # Geo = TwoD(3, 3)
-    # Par = Fermion(4)
-    # Coul = Coulomb(1.0, -1.0, 0.5, 0.5, 0.2)
-    # GS(Conserved(), Par, Geo, Coul)
-
-    # Geo = TwoD(1, 1)
-    # @show Geo
-    # GS(Not_conserved(), Geo)
-    # Geo = Line(12)
-    # Par = Fermion(6)
-    # Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
-    # GS(Conserved(), Par, Geo, Coul)
-    
-
-    #taks(Conserved(), Geo, N)
-    #GS(Conserved(), L, N)
 
     #res = []
     energies = []
@@ -71,19 +55,17 @@ end
 
 
 
-GS(qn::QN, Par :: Particle,  Geo::Geometry, Coul::Coulomb, bias::Bias) = @time _GS(qn, Par,Geo, Coul, bias)
+GS(qn::QN, Par :: Particle,  Geo::Geometry, Coul::Coulomb, bias::Bias; nev = 1, method = arnoldi(), kwargs...) = @time _GS(qn, Par,Geo, Coul, bias, nev, method)
 
 
 
-function _GS(qn::QN, Par :: Particle,  Geo::Geometry, Coul::Coulomb, bias :: Bias)
+function _GS(qn::QN, Par :: Particle,  Geo::Geometry, Coul::Coulomb, bias :: Bias, nev :: Int, method :: DiagMethod)
 
-    #Coul = Coulomb(2.0, -1.0, 0.5, 0.2)
-    #Coul = Coulomb(0.0, -0.0, 0.5, 0.0)
-
+    
     ham = gen_ham(qn, Par, Geo, Coul, bias)
-    w, U = _solve(ham, Geo, Par)
+    w, U = _solve(ham, Geo, Par; nev = min(nev, length(ham)), method = method)
 
-    expectation(qn, Par, Geo, U, Occupation())
+    #@show expectation(qn, Par, Geo, U, Occupation())
 
     return w
 
@@ -162,8 +144,8 @@ function scan()
 
     if length(ARGS) == 0
         Ns = [
-            #(0, 0),
-            #(1, 1),
+            (0, 0),
+            (1, 1),
             (2, 0),
             #(1, 6),
             #(3, 4)
@@ -217,13 +199,104 @@ function scan()
                         gap = (refdict[ (Nup + 1, Ndn, U)] - refdict[ (Nup, Ndn, U)]) * multiplier
 
                         filestr = "scan/$(get_name(Geo_dyna))_$(get_name(Par))_1emultiplier$(multiplier)_sc$(sc)_dc$(dc)/"
+
+
+                        if !(isdir(filestr))
+                            time_evolve(Conserved(), Par, Geo_init, Geo_dyna, Coul, LoadLeft(-1000, gap), filestr)
+                        end 
                     
-                        time_evolve(Conserved(), Par, Geo_init, Geo_dyna, Coul, LoadLeft(-1000, gap), filestr)
+                        
                     end 
                 end 
             end 
         end 
     end 
     
+
+end
+
+
+
+
+
+function test()
+
+    Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+
+    Geo = Line(12)
+    Par = Fermion(6)
+    
+
+    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
+    bias = Bias( [0 for _ in 1:Geo.L])
+    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
+
+    @show val
+
+
+    Geo = TwoD(3, 3)
+    Par = Electron(3, 4, 4.0)
+    
+    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
+    bias = Bias( [0 for _ in 1:Geo.L])
+    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
+
+    @show val
+    # open("ref/$(Nup)plusone", "w") do io
+    #     writedlm(io, res)
+    # end 
+    
+
+end 
+
+
+
+
+
+function markov_test()
+
+
+    Geo = TwoD(2, 2)
+    Par = Electron(;U = 0.0)
+    Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.2)
+
+    #Par = Electron(;U = 4.0)
+    #Coul = Coulomb(2.0, -2.0, 0.5, 0.5, 0.2)
+    bias = Bias( [0 for _ in 1:Geo.L])
+
+
+    ρ = gen_ρ(Not_conserved(), Par, Geo)
+    sol = _odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, 0.5, 0.0, 0.0, 0.5))
+    
+    expectation(Not_conserved(), sol, Par, Geo, Occupation(); if_plot = true)
+    #expectation(Not_conserved(), sol, Par, Geo, Current(); if_plot = true)
+
+end 
+
+
+
+
+function GG()
+
+    Gs = -1000.0:50.0:1000.0
+    
+    for (G1, G2) in Base.product(Gs, Gs)
+
+        Geo = TwoD(2, 2)
+        Par = Electron(;U = 40.0)
+        Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+    
+        #Par = Electron(;U = 4.0)
+        #Coul = Coulomb(2.0, -2.0, 0.5, 0.5, 0.2)
+        bias = Bias( [0, G1, G2, 0])
+    
+    
+        ρ = gen_ρ(Not_conserved(), Par, Geo)
+        @time sol = _odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, 0.5, 0.0, 0.0, 0.5))
+        
+        expectation(Not_conserved(), sol, Par, Geo, Occupation(); if_plot = false, save = true, filestr = "GG/G1$(G1)G2$(G2)/")
+        #expectation(Not_conserved(), sol, Par, Geo, Current(); if_plot = true)
+
+    end 
 
 end 

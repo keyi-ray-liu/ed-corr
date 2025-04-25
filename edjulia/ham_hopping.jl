@@ -33,7 +33,7 @@ end
 function hopping!(basis_dict :: Dict, M :: SparseMatrixCSC, ::Fermion, Geo :: Geometry; local_shift = 0)
 
     hopdict = Geo.hopdict
-    t = Geo.T
+    t = Geo.t
 
     M = _hopping(basis_dict, M, Fermion(), hopdict, t, local_shift)
 
@@ -117,14 +117,14 @@ end
 
 
 
-jordanwigner(::Fermion, basis, from, to) = (-1) ^ ( 1 + length(findall( >(1), basis[from + 1:to - 1] )))
+jordanwigner(::Fermion, basis, from, to) = (-1) ^ ( 1 + length(findall( >(0), basis[from + 1:to - 1] )))
 
 
 function jordanwigner( ::Up, basis, from , to, L)
 
 
-    up = length(findall( >(1), basis[(from ):(to - 1)] ))
-    dn = length(findall( >(1), basis[(from + L):(to -1 + L)] ))
+    up = length(findall( >(0), basis[(from ):(to - 1)] ))
+    dn = length(findall( >(0), basis[(from + L):(to -1 + L)] ))
 
     total = up + dn
     
@@ -135,8 +135,8 @@ end
 function jordanwigner( ::Dn, basis, from , to, L)
 
 
-    up =  length(findall( >(1), basis[(from + 1):(to )] ))
-    dn =  length(findall( >(1), basis[(from + 1 + L):(to + L )] ))
+    up =  length(findall( >(0), basis[(from + 1):(to )] ))
+    dn =  length(findall( >(0), basis[(from + 1 + L):(to + L )] ))
     
     total = up + dn
     #return  (-1)^ ( 1 + length(findall( x -> x == 2 || x == 4, basis[from + 1:to - 1] )))

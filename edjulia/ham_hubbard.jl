@@ -7,7 +7,7 @@ function hubbard(basis_dict :: Dict, M :: SparseMatrixCSC, par::Electron, Geo ::
 
         for s in 1 + local_shift : L + local_shift
 
-            if basis[s] == basis[ s + spin_shift ] == 2
+            if basis[s] == basis[ s + spin_shift ] == 1
                 M[ind, ind] += par.U 
             end 
         end 

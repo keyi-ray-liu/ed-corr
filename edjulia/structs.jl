@@ -6,6 +6,7 @@ abstract type Observable end
 abstract type Parameter end
 abstract type drivingmode end
 abstract type DiagMethod end
+abstract type OpenSystem end 
 
 struct Up <: Spin end
 struct Dn <: Spin end
@@ -18,6 +19,15 @@ struct LoadLeft <: drivingmode
     init :: Number
     dyna :: Number
 end
+
+struct InjDep <: OpenSystem
+    source_site :: Int
+    drain_site :: Int
+    γ_inj_source :: Float64
+    γ_dep_source :: Float64
+    γ_inj_drain :: Float64
+    γ_dep_drain :: Float64
+end 
 
 
 struct LoadBoth <: drivingmode
@@ -44,6 +54,10 @@ struct Electron <: Particle
     Nup :: Int
     Ndn :: Int
     U :: Float64
+    function Electron(;Nup = 0, Ndn = 0, U = 0)
+        new(Nup, Ndn, U)
+    end 
+    Electron(Nup, Ndn, U) = Electron(; Nup = Nup, Ndn = Ndn, U = U)
 end
 
 get_name(Par :: Fermion) = "N$(Par.N)"

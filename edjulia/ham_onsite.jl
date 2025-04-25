@@ -15,3 +15,10 @@ function _onsite(basis :: Tuple, :: Electron, bias::Bias, L::Int)
     return sum(bias.val .* basis[1:L ] + bias.val .* basis[L + 1:end])
 
 end 
+
+
+function _onsite(basis :: Tuple, :: Fermion, bias::Bias, L::Int)
+
+    return sum(bias.val .* basis[1:L ])
+
+end 

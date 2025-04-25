@@ -5,8 +5,8 @@ function gen_basis(::Conserved, Par::Fermion, Geo::Geometry)
     result = []
     
     for comb in combs
-        arr = ones(Int, Geo.L)
-        arr[comb] .= 2
+        arr = zeros(Int, Geo.L)
+        arr[comb] .= 1
         push!(result, Tuple(arr))
     end 
 
@@ -27,9 +27,9 @@ function gen_basis(::Conserved, Par::Electron, Geo::Geometry)
     
     for up in ups
         for dn in dns
-            arr = ones(Int, L * 2)
-            arr[up] .= 2
-            arr[dn] .= 2
+            arr = zeros(Int, L * 2)
+            arr[up] .= 1
+            arr[dn] .= 1
             push!(result, Tuple(arr))
         end 
     end 
@@ -41,11 +41,11 @@ end
 
 
 function gen_basis(::Not_conserved, ::Fermion, Geo:: Geometry)
-    return Base.product([1:2 for _ in 1:Geo.L]...)
+    return Base.product([0:1 for _ in 1:Geo.L]...)
 end 
 
 function gen_basis(::Not_conserved, ::Electron, Geo:: Geometry)
-    return Base.product([1:2 for _ in 1:(Geo.L * 2)]...)
+    return Base.product([0:1 for _ in 1:(Geo.L * 2)]...)
 end 
 
 

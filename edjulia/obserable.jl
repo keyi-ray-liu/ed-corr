@@ -74,7 +74,6 @@ end
 
 function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation; filestr="", save=true)
     basis = gen_basis(qn, Par, Geo)
-
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 
     
@@ -150,6 +149,160 @@ function expectation(qn::QN, Par::Electron, sd::SD, U, current::Current; filestr
     end 
 
     return current
+
+end 
+
+
+function expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation; filestr="", save=false, if_plot = false)
+
+    Nups, Ndns = _expectation(qn, sol, Par, Geo, Occupation(), if_plot)
+
+
+    if save
+
+        open( "$(filestr)occup", "w") do io
+            writedlm(io, round.(Nups, sigdigits=5) )
+        end
+
+        open( "$(filestr)occdn", "w") do io
+            writedlm(io, round.(Ndns, sigdigits=5) )
+        end
+    end 
+
+end 
+
+
+function expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Current; filestr="", save=false, if_plot = false)
+
+    cur = _expectation(qn, sol, Par, Geo, Current(), if_plot)
+
+
+    if save
+
+        open( "$(filestr)current", "w") do io
+            writedlm(io, round.(cur, sigdigits=5) )
+        end
+
+    end 
+
+end 
+
+
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation, if_plot :: Bool)
+
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    #v = collect(basis)
+    #@show v[1], v[2], v[17]
+
+    Nupops = [nup(basis_dict, Electron(), Geo, i) for i in 1:Geo.L]
+    Ndnops = [ndn(basis_dict, Electron(), Geo, i) for i in 1:Geo.L]
+
+    Nups = []
+    Ndns = []
+
+
+    for ρ in sol.u
+
+        @show count( !=(0), ρ)
+        #@show ρ
+        Nup = [ _expectation(ρ, Nupop) for Nupop in Nupops]
+        Ndn = [ _expectation(ρ, Ndnop) for Ndnop in Ndnops]
+        
+        append!(Nups, [Nup])
+        append!(Ndns, [Ndn])
+    end 
+
+    #@show Nups
+
+    Nups = vectomat(Nups)
+    Ndns = vectomat(Ndns)
+
+    Nups = real.(Nups)
+    Ndns = real.(Ndns)
+
+    if if_plot
+        plt = plot()
+        
+        for (i, obs) in enumerate(eachcol(Nups))
+            plot!(plt, sol.t, obs; label = "n↑$(i)", xlabel = "time", title = "", ylabel = "⟨n̂⟩")
+        end 
+
+        # for (i, obs) in enumerate(eachcol(Ndns))
+        #     plot!(plt, sol.t, obs; label = "n↓$(i)", xlabel = "time", title = "", ylabel = "⟨n̂⟩")
+        # end 
+
+        display(plt)
+    end 
+
+    return Nups, Ndns
+
+end 
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Electron, td:: TwoD, ::Current, if_plot :: Bool)
+
+    basis = gen_basis(qn, Par, td)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    L = td.L
+    X = td.X
+    
+    cur_sup = corr_up(basis_dict, Par, td, 1, 2) + corr_up(basis_dict, Par, td, 1, 1 + X)
+    cur_sdn = corr_dn(basis_dict, Par, td, 1, 2) + corr_dn(basis_dict, Par, td, 1, 1 + X)
+
+    cur_dup = corr_up(basis_dict, Par, td, L - X, L) + corr_up(basis_dict, Par, td, L - 1, L)
+    cur_ddn = corr_dn(basis_dict, Par, td, L - X, L) + corr_dn(basis_dict, Par, td, L - 1, L)
+
+
+    # cur_sup = cup(basis_dict, Par, td, 1) * cdagup(basis_dict, Par, td, 1) 
+    # cur_sdn = cdn(basis_dict, Par, td, 1) * cdagdn(basis_dict, Par, td, 1)
+    # cur_dup = cup(basis_dict, Par, td, L) * cdagup(basis_dict, Par, td, L)
+    # cur_ddn = cdn(basis_dict, Par, td, L) * cdagdn(basis_dict, Par, td, L)
+
+    curops = [cur_sup, cur_dup, cur_sdn, cur_ddn]
+    curs = []
+    
+    for ρ in sol.u
+
+        #@show ρ
+        cur = [ _expectation(ρ, curop) for curop in curops]
+        
+        append!(curs, [cur])
+    end 
+
+    #@show Nups
+
+    curs = vectomat(curs)
+
+    curs = imag.(curs)
+
+
+    if if_plot
+        plt = plot()
+        
+
+        for (i, obs) in enumerate(eachcol(curs))
+            plot!(plt, sol.t, obs; label = "cur $(i)", xlabel = "time", title = "", ylabel = "I")
+        end 
+
+        display(plt)
+    end 
+
+    return curs
+
+end 
+
+
+
+
+function _expectation(ρ, op :: SparseMatrixCSC)
+
+    O = tr(ρ * op)
+    return O
 
 end 
 

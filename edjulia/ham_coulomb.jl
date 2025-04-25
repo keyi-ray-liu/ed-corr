@@ -17,7 +17,7 @@ end
 function ee(basis, ::Fermion, Coul::Coulomb, Geo :: Geometry)
 
     val = 0
-    nonzero = findall( >(1), basis)
+    nonzero = findall( >(0), basis)
     comb = combinations(nonzero, 2)
 
 
@@ -49,29 +49,37 @@ end
 function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
 
     val = 0
-    nonzero = findall( x -> x > 1, basis)
+    nonzero = findall( >(0), basis)
     comb = combinations(nonzero, 2)
+    L = Geo.L
 
 
     for (ind1, ind2) in comb
 
-        multiplier = div(basis[ind1], 2) * div(basis[ind2], 2)
+        ind1 -= ind1 > L ? L : 0
+        ind2 -= ind2 > L ? L : 0
 
-        dist = distance(ind1, ind2, Geo)
-        r = dist + Coul.ζ_ee
-        factor = dist == 1 ? 1 - Coul.exch : 1
-        val += Coul.ee * factor * multiplier / r
+        if ind1 != ind2
+
+            dist = distance(ind1, ind2, Geo)
+            r = dist + Coul.ζ_ee
+            factor = dist == 1 ? 1 - Coul.exch : 1
+            val += Coul.ee * factor  / r
+            
+        end 
     end 
 
 
-    for ind in eachindex(basis)
+    for ind in eachindex(basis[1:L])
         for ind2 in nonzero
 
-            if ind != ind2
+            ind2 -= ind2 > L ? L : 0
 
-                multiplier = 2 * div(basis[ind2], 2)
+            if ind != ind2
                 r = distance(ind, ind2, Geo) + Coul.ζ_ne
-                val += Coul.ne * multiplier / r
+
+                # count for nuclear spin
+                val += Coul.ne * 2 / r
             end 
         end 
     end     
