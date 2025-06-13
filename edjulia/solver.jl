@@ -39,7 +39,7 @@ function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_
     filestr = "ref/$(get_name(Geo))$(get_name(Par))/"
 
     try
-        mkdir( filestr )
+        mkpath( filestr )
     catch
     end
 
@@ -94,7 +94,7 @@ function _time_evolve(qn::QN, Geo_init::Geometry, Geo_dyna::Geometry, Par::Parti
 
 
     try
-        mkdir( filestr )
+        mkpath( filestr )
     catch
     end
 
@@ -130,30 +130,115 @@ function _diag(h, ::arnoldi, nev)
 end 
 
 
-function _odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep)
+
+
+function _odesolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep;)
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 
+    inj_source = cdag(basis_dict,  Geo, op.source_site)
+    dep_source = c(basis_dict,  Geo, op.source_site)
 
+    inj_drain= cdag(basis_dict,  Geo, op.drain_site)
+    dep_drain = c(basis_dict,  Geo, op.drain_site)
 
-    inj_source = cdag(basis_dict, Par, Geo, op.source_site)
-    dep_source = c(basis_dict, Par, Geo, op.source_site)
-
-    inj_drain= cdag(basis_dict, Par, Geo, op.drain_site)
-    dep_drain = c(basis_dict, Par, Geo, op.drain_site)
-
-    ops = [inj_source, dep_source, inj_drain, dep_drain]
+    ops = [inj_source, dep_source, inj_drain, dep_drain ]
     γs = [ op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain]
 
     p = [h, ops, γs]
-    tspan = (0, 100)
+    tspan = (0, 500)
 
     
     prob = ODEProblem(lindbladian, ρ0, tspan, p)
     sol = solve(prob, Tsit5(), reltol = 1e-8, abstol = 1e-8)
 
     return sol
+
+end 
+
+
+
+function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0, fin = 500)
+
+    #   ---------- up -------------
+
+    inj_source_up = cdagup(basis_dict, Geo, op.source_site)
+    dep_source_up = cup(basis_dict,  Geo, op.source_site)
+
+    inj_drain_up = cdagup(basis_dict, Geo, op.drain_site)
+    dep_drain_up = cup(basis_dict,  Geo, op.drain_site)
+
+   # ---------- dn -------------
+
+    inj_source_dn = cdagdn(basis_dict, Geo, op.source_site)
+    dep_source_dn = cdn(basis_dict,  Geo, op.source_site)
+
+    inj_drain_dn = cdagdn(basis_dict,  Geo, op.drain_site)
+    dep_drain_dn = cdn(basis_dict,  Geo, op.drain_site)
+
+
+    ops = [
+        inj_source_up, dep_source_up, inj_drain_up, dep_drain_up, 
+    inj_source_dn, dep_source_dn, inj_drain_dn, dep_drain_dn, 
+    ]
+
+    γs = [ 
+        op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain,
+     op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain,
+     ]
+
+    p = [h, ops, γs]
+    tspan = (start, fin)
+
+    
+    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
+
+    #method = lsoda()  # recommended for large system but not complex
+    #method = DP8()  # supposedly stable memory wise
+    #method = VCABM()
+    #method = Tsit5()  # out of memory for 500? 
+    #method = Vern8()
+    method = DP5()
+
+    @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
+    progress = true, progress_steps = 1
+    #saveat=tstep
+    )
+
+    #@show sizeof(sol.u) / 2^30
+
+    return sol
+
+end 
+
+
+
+function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "")
+
+    h = gen_ham(qn, Par, Geo, Coul, bias )
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    stops = collect(range(start, fin, length = chunks + 1))
+
+    for ind in eachindex(stops[1:end - 1])
+
+        cur_start = stops[ind]
+        cur_fin = stops[ind + 1]
+
+        cur_sol = _odesolve(h, basis_dict, Geo, ρ0, op; start = cur_start, fin = cur_fin)
+
+        expectation(Not_conserved(), cur_sol, Par, Geo, Occupation(); filestr = filestr)
+        expectation(Not_conserved(), cur_sol, Par, Geo, Current(); filestr = filestr)
+
+        ρ0 = cur_sol.u[end]
+
+        
+        
+    end 
+
+    @info "memory usage: $(Sys.maxrss()/2^30) GB"
 
 end 

@@ -59,6 +59,7 @@ function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
         ind1 -= ind1 > L ? L : 0
         ind2 -= ind2 > L ? L : 0
 
+
         if ind1 != ind2
 
             dist = distance(ind1, ind2, Geo)
@@ -79,7 +80,7 @@ function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
                 r = distance(ind, ind2, Geo) + Coul.ζ_ne
 
                 # count for nuclear spin
-                val += Coul.ne * 2 / r
+                val += Coul.ne  / r
             end 
         end 
     end     

@@ -32,7 +32,7 @@ function _expectation(basis_mat :: Matrix, ::Electron,  Geo :: Geometry , V, ::O
 
 
     try
-        mkdir( filestr )
+        mkpath( filestr )
     catch
     end
 
@@ -63,9 +63,8 @@ function sanitizer(::Occupation, sd::SD, occup, occdn)
     occup = occup'
     occdn = occdn'
 
-    occup = hcat( occup[ :, 1 :sd.S.L], occup[:, sd.S.L + sd.D.L + 1: end], occup[:, sd.S.L + 1 : sd.S.L + sd.D.L])
-
-    occdn = hcat( occdn[ :, 1 :sd.S.L], occdn[:, sd.S.L + sd.D.L + 1: end], occdn[:, sd.S.L + 1 : sd.S.L + sd.D.L])
+    occup = hcat( occup[ :, 1:sd.S.L], occup[:, (sd.S.L + sd.D.L + 1):end], occup[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
+    occdn = hcat( occdn[ :, 1:sd.S.L], occdn[:, (sd.S.L + sd.D.L + 1):end], occdn[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
 
     return occup, occdn
 end 
@@ -111,7 +110,7 @@ function _expectation(corr_mat_up :: SparseMatrixCSC, corr_mat_dn :: SparseMatri
 
 
     try
-        mkdir( filestr )
+        mkpath( filestr )
     catch
     end
 
@@ -153,44 +152,68 @@ function expectation(qn::QN, Par::Electron, sd::SD, U, current::Current; filestr
 end 
 
 
-function expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation; filestr="", save=false, if_plot = false)
 
-    Nups, Ndns = _expectation(qn, sol, Par, Geo, Occupation(), if_plot)
+function expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Occupation; filestr="")
 
+    try
+        mkpath( filestr )
+    catch
+    end
 
-    if save
+    N = _expectation(qn, sol, Par, Geo, Occupation())
 
-        open( "$(filestr)occup", "w") do io
-            writedlm(io, round.(Nups, sigdigits=5) )
-        end
-
-        open( "$(filestr)occdn", "w") do io
-            writedlm(io, round.(Ndns, sigdigits=5) )
-        end
-    end 
+    open( "$(filestr)occ", "a") do io
+        writedlm(io, round.(N, sigdigits=5) )
+    end
 
 end 
 
 
-function expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Current; filestr="", save=false, if_plot = false)
+function expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation; filestr="")
 
-    cur = _expectation(qn, sol, Par, Geo, Current(), if_plot)
+    try
+        mkpath( filestr )
+    catch
+    end
 
+    Nups, Ndns = _expectation(qn, sol, Par, Geo, Occupation())
 
-    if save
+    open( "$(filestr)occup", "a") do io
+        writedlm(io, round.(Nups, sigdigits=5) )
+    end
 
-        open( "$(filestr)current", "w") do io
-            writedlm(io, round.(cur, sigdigits=5) )
-        end
+    open( "$(filestr)occdn", "a") do io
+        writedlm(io, round.(Ndns, sigdigits=5) )
+    end
 
-    end 
 
 end 
 
 
+function expectation(qn ::QN, sol::ODESolution, Par::Particle, Geo:: Geometry, ::Current; filestr="")
+
+    try
+        mkpath( filestr )
+    catch
+    end
+
+    cur = _expectation(qn, sol, Par, Geo, Current())
+    
+    
+
+    open( "$(filestr)time", "a") do io
+        writedlm(io, round.(sol.t, sigdigits=5) )
+    end
+
+    open( "$(filestr)current", "a") do io
+        writedlm(io, round.(cur, sigdigits=5) )
+    end
 
 
-function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation, if_plot :: Bool)
+end 
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Occupation)
 
     basis = gen_basis(qn, Par, Geo)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
@@ -198,8 +221,39 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
     #v = collect(basis)
     #@show v[1], v[2], v[17]
 
-    Nupops = [nup(basis_dict, Electron(), Geo, i) for i in 1:Geo.L]
-    Ndnops = [ndn(basis_dict, Electron(), Geo, i) for i in 1:Geo.L]
+    Nops= [n(basis_dict, Geo, i) for i in 1:Geo.L]
+    Ns = []
+
+
+    for ρ in sol.u
+
+        #@show count( !=(0), ρ)
+        #@show ρ
+        N = [ _expectation(ρ, Nop) for Nop in Nops]
+        
+        append!(Ns, [N])
+    end 
+    
+    Ns = vectomat(Ns)
+    Ns = real.(Ns)
+
+
+    return Ns
+
+end 
+
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Occupation)
+
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    #v = collect(basis)
+    #@show v[1], v[2], v[17]
+
+    Nupops = [nup(basis_dict, Geo, i) for i in 1:Geo.L]
+    Ndnops = [ndn(basis_dict, Geo, i) for i in 1:Geo.L]
 
     Nups = []
     Ndns = []
@@ -207,7 +261,7 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
 
     for ρ in sol.u
 
-        @show count( !=(0), ρ)
+        #@show count( !=(0), ρ)
         #@show ρ
         Nup = [ _expectation(ρ, Nupop) for Nupop in Nupops]
         Ndn = [ _expectation(ρ, Ndnop) for Ndnop in Ndnops]
@@ -224,46 +278,66 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
     Nups = real.(Nups)
     Ndns = real.(Ndns)
 
-    if if_plot
-        plt = plot()
-        
-        for (i, obs) in enumerate(eachcol(Nups))
-            plot!(plt, sol.t, obs; label = "n↑$(i)", xlabel = "time", title = "", ylabel = "⟨n̂⟩")
-        end 
-
-        # for (i, obs) in enumerate(eachcol(Ndns))
-        #     plot!(plt, sol.t, obs; label = "n↓$(i)", xlabel = "time", title = "", ylabel = "⟨n̂⟩")
-        # end 
-
-        display(plt)
-    end 
-
     return Nups, Ndns
 
 end 
 
 
-function _expectation(qn ::QN, sol::ODESolution, Par::Electron, td:: TwoD, ::Current, if_plot :: Bool)
+source(td :: TwoD) = [(td.t, 1, 2), (td.t, 1, 1 + td.X)]
+drain(td :: TwoD) = [(td.t, td.L - td.X, td.L), (td.t, td.L - 1, td.L)]
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Current)
 
     basis = gen_basis(qn, Par, td)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 
-    L = td.L
-    X = td.X
+    sourceinds = source(Geo)
+    draininds = drain(Geo)
+
+    cur_s = sum([coup * corr(basis_dict, td, from, to) for (coup, from, to) in sourceinds ])
+    cur_d = sum([coup * corr(basis_dict, td, from, to) for (coup, from, to) in draininds ])
+
+
+
+    curops = [cur_s, cur_d]
+    curs = []
     
-    cur_sup = corr_up(basis_dict, Par, td, 1, 2) + corr_up(basis_dict, Par, td, 1, 1 + X)
-    cur_sdn = corr_dn(basis_dict, Par, td, 1, 2) + corr_dn(basis_dict, Par, td, 1, 1 + X)
+    for ρ in sol.u
 
-    cur_dup = corr_up(basis_dict, Par, td, L - X, L) + corr_up(basis_dict, Par, td, L - 1, L)
-    cur_ddn = corr_dn(basis_dict, Par, td, L - X, L) + corr_dn(basis_dict, Par, td, L - 1, L)
+        #@show ρ
+        cur = [ _expectation(ρ, curop) for curop in curops]
+        append!(curs, [cur])
+    end 
 
 
-    # cur_sup = cup(basis_dict, Par, td, 1) * cdagup(basis_dict, Par, td, 1) 
-    # cur_sdn = cdn(basis_dict, Par, td, 1) * cdagdn(basis_dict, Par, td, 1)
-    # cur_dup = cup(basis_dict, Par, td, L) * cdagup(basis_dict, Par, td, L)
-    # cur_ddn = cdn(basis_dict, Par, td, L) * cdagdn(basis_dict, Par, td, L)
+    curs = vectomat(curs)
+    curs = -2 * imag.(curs)
+
+    return curs
+
+end 
+
+
+function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Current)
+
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    sourceinds = source(Geo)
+    draininds = drain(Geo)
+
+
+    cur_sup = sum([coup * corr_up(basis_dict, Geo, from, to) for (coup, from, to) in sourceinds ])
+    cur_sdn = sum([coup * corr_dn(basis_dict, Geo, from, to) for (coup, from, to) in sourceinds ])
+
+    cur_dup = sum([coup * corr_up(basis_dict, Geo, from, to) for (coup, from, to) in draininds ])
+    cur_ddn = sum([coup * corr_dn(basis_dict, Geo, from, to) for (coup, from, to) in draininds ])
+
 
     curops = [cur_sup, cur_dup, cur_sdn, cur_ddn]
+    #curops = [cur_sup, cur_dup]
+
     curs = []
     
     for ρ in sol.u
@@ -277,20 +351,7 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, td:: TwoD, ::Cur
     #@show Nups
 
     curs = vectomat(curs)
-
-    curs = imag.(curs)
-
-
-    if if_plot
-        plt = plot()
-        
-
-        for (i, obs) in enumerate(eachcol(curs))
-            plot!(plt, sol.t, obs; label = "cur $(i)", xlabel = "time", title = "", ylabel = "I")
-        end 
-
-        display(plt)
-    end 
+    curs = -2 * imag.(curs)
 
     return curs
 

@@ -233,9 +233,30 @@ function test()
 
     @show val
 
+    Geo = TwoD(3, 3)
+    Par = Fermion(4)
+    
+    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
+    bias = Bias( [0 for _ in 1:Geo.L])
+    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
+
+    @show val
+
 
     Geo = TwoD(3, 3)
     Par = Electron(3, 4, 4.0)
+    
+    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
+    bias = Bias( [0 for _ in 1:Geo.L])
+    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
+
+    @show val
+
+
+
+    Geo = TwoD(3, 3)
+    Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.2)
+    Par = Electron(3, 4, 100.0)
     
     #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
     bias = Bias( [0 for _ in 1:Geo.L])
@@ -251,52 +272,86 @@ end
 
 
 
+function check_ham_construction()
+    Geo = TwoD(3,3)
+    Par = Fermion(4)
+    Coul = Coulomb(0.0, 0.0, 0.5, 0.5, 0.2)
+    bias = Bias([0 for _ in 1:Geo.L])
+    qn = Conserved()
+
+    M1 = gen_ham(qn, Par, Geo, Coul, bias)
+    M2 = gen_ham_direct(qn, Par, Geo, Coul, bias)
+
+
+    isapprox(M1, M2)
+
+end 
+
 
 
 function markov_test()
 
 
     Geo = TwoD(2, 2)
-    Par = Electron(;U = 0.0)
-    Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.2)
+    #Geo = SD(1, 1, 2, 2; AS =[1], AD = [4],)
 
-    #Par = Electron(;U = 4.0)
-    #Coul = Coulomb(2.0, -2.0, 0.5, 0.5, 0.2)
-    bias = Bias( [0 for _ in 1:Geo.L])
+    #Par = Fermion() 
+    Par = Electron(; 
+    U = 4.0
+    )
+    Coul = Coulomb(
+        2.0,
+         -1.0, 
+         0.5, 0.5, 0.2)#[0.1, 1.0, 10.0, 100.0]
 
+    γ = 2.0
+    G1 = -20.0
+    G2 = 0.0
+    #bias = Bias( [0, 0, G1, G2, 0, 0])
+
+
+    bias = Bias( [0, G1, G2, 0])
+
+    filestr = "test/g$(γ)_G$(G1)_G$(G2)_U$(Par.U)_Coul$(Bool(Coul.ee != 0))/"
 
     ρ = gen_ρ(Not_conserved(), Par, Geo)
-    sol = _odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, 0.5, 0.0, 0.0, 0.5))
-    
-    expectation(Not_conserved(), sol, Par, Geo, Occupation(); if_plot = true)
-    #expectation(Not_conserved(), sol, Par, Geo, Current(); if_plot = true)
+    @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, γ, 0.0, 0.0, γ); filestr = filestr, start = 0, fin = 500, chunks = 1)
 
+    occplot(Par, filestr)
+    curplot(Par, filestr)
 end 
 
 
 
+function gamma_scan()
 
-function GG()
+    γs = 10.0 .^ (-1:0.1:2.0) #[0.1, 1.0, 10.0, 100.0]
 
-    Gs = -1000.0:50.0:1000.0
-    
-    for (G1, G2) in Base.product(Gs, Gs)
+    Threads.@threads for γ in γs
 
         Geo = TwoD(2, 2)
-        Par = Electron(;U = 40.0)
-        Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
-    
-        #Par = Electron(;U = 4.0)
-        #Coul = Coulomb(2.0, -2.0, 0.5, 0.5, 0.2)
-        bias = Bias( [0, G1, G2, 0])
-    
-    
-        ρ = gen_ρ(Not_conserved(), Par, Geo)
-        @time sol = _odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, 0.5, 0.0, 0.0, 0.5))
-        
-        expectation(Not_conserved(), sol, Par, Geo, Occupation(); if_plot = false, save = true, filestr = "GG/G1$(G1)G2$(G2)/")
-        #expectation(Not_conserved(), sol, Par, Geo, Current(); if_plot = true)
 
+        #Par = Fermion() 
+        Par = Electron(; U = 4.0)
+        Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+
+        G1 = -0.0
+        G2 = 0.0
+
+        G1 = trunc(G1; sigdigits = 5)
+        G2 = trunc(G2; sigdigits = 5)
+        bias = Bias( [0, G1, G2, 0])
+
+        filestr = "test/g$(γ)_GOne$(G1)_GTwo$(G2)_U$(Par.U)_Coul$(Coul.ee)/"
+
+        if !ispath(filestr * "time")
+            ρ = gen_ρ(Not_conserved(), Par, Geo)
+            odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, γ, 0.0, 0.0, γ); filestr = filestr, start = 0, fin = 500, chunks = 1)
+
+        end 
     end 
 
 end 
+
+
+

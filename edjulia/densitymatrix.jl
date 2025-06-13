@@ -1,25 +1,24 @@
 
+cdag(basis_dict:: Dict, geo::Geometry, site) = _cdag(basis_dict, site, geo.L)
+c(args...) = cdag(args...)'
 
-
-
-cdagup(basis_dict:: Dict, ::Electron, td::TwoD, site) = _cdag(basis_dict, Electron(), site, 0, 0 )
-cdagdn(basis_dict:: Dict, ::Electron, td::TwoD, site) = _cdag(basis_dict, Electron(), site, 0, td.L )
-cdag(args...) = cdagup(args...) + cdagdn(args...)
+cdagup(basis_dict:: Dict,  geo::Geometry, site) = _cdag(basis_dict,  site, 0, geo.L)
+cdagdn(basis_dict:: Dict,  geo::Geometry, site) = _cdag(basis_dict,  site, geo.L, geo.L)
 
 
 cup(args...) = cdagup(args...)'
 cdn(args...) = cdagdn(args...)'
-c(args...) = cdag(args...)'
 
 
 
+corr_up( basis_dict,  geo, site1, site2) = cdagup(basis_dict, geo, site1) * cup(basis_dict, geo, site2)
+corr_dn( basis_dict,  geo, site1, site2) = cdagdn(basis_dict, geo, site1) * cdn(basis_dict, geo, site2)
 
-corr_up( basis_dict, Par, td, site1, site2) =  cdagup( basis_dict, Par, td, site1) * cup(basis_dict, Par, td, site2)
-corr_dn( basis_dict, Par, td, site1, site2) = cdagdn( basis_dict, Par, td, site1) * cdn(basis_dict, Par, td, site2) 
+#corr( basis_dict, ::Fermion, geo, site1, site2) = _corr( basis_dict, Fermion(), site1, site2, 0)
 
 
-
-function _cdag(basis_dict :: Dict,  ::Electron, site::Int, local_shift::Int, spin_shift::Int  )
+# Fermionic cdag
+function _cdag(basis_dict :: Dict,  site::Int,  L :: Int )
 
     dim = length(keys(basis_dict))
     M = spzeros(dim, dim)
@@ -27,7 +26,38 @@ function _cdag(basis_dict :: Dict,  ::Electron, site::Int, local_shift::Int, spi
 
     for (basis :: Tuple, ind1 :: Int) in basis_dict
 
-        site += local_shift
+        if basis[site] == 0
+            newbasis =  collect(basis)
+            newbasis[site] = 1
+
+            newkey = Tuple(newbasis)
+
+            if newkey ∈ keys(basis_dict)
+                ind2 = basis_dict[newkey]
+                M[ind2, ind1] = jw(Fermion(), basis, site) * 1
+
+            end 
+
+        end 
+
+    end 
+
+    return M
+
+
+end 
+
+
+function _cdag(basis_dict :: Dict,  site::Int, spin_shift::Int, L :: Int )
+
+    dim = length(keys(basis_dict))
+    M = spzeros(dim, dim)
+    # this represents cdag at site $site
+
+    Sp = spin_shift == 0 ? Up() : Dn()
+
+    for (basis :: Tuple, ind1 :: Int) in basis_dict
+
 
         if basis[site + spin_shift] == 0
             newbasis =  collect(basis)
@@ -37,7 +67,8 @@ function _cdag(basis_dict :: Dict,  ::Electron, site::Int, local_shift::Int, spi
 
             if newkey ∈ keys(basis_dict)
                 ind2 = basis_dict[newkey]
-                M[ind2, ind1] = 1
+                M[ind2, ind1] = jw(Sp, basis, site, L) * 1
+
             end 
 
         end 
@@ -50,23 +81,80 @@ function _cdag(basis_dict :: Dict,  ::Electron, site::Int, local_shift::Int, spi
 
 end 
 
+#corr_up( basis_dict, Par, geo, site1, site2) =  _corr( basis_dict, Par, site1, site2, 0, 0, Up())
+#corr_dn( basis_dict, Par, geo, site1, site2) =  _corr( basis_dict, Par, site1, site2, 0, geo.L, Dn())
+
+# function _corr(basis_dict :: Dict,  ::Fermion, from::Int, to::Int, local_shift::Int)
+
+#     @info "This is Fermion corr, calculating: from $(from), to $(to)"
+#     dim = length(keys(basis_dict))
+#     M = spzeros(dim, dim)
+#     # this represents cdag at site $site
+#     for (basis :: Tuple, ind1 :: Int) in basis_dict
+#         from += local_shift
+#         to += local_shift
+
+#         if basis[from ] < basis[to ]
+#             newbasis =  collect(basis)
+#             newbasis[to ], newbasis[from ] = basis[from], basis[to ]
+
+#             ind2 = basis_dict[Tuple(newbasis)]
+#             hop =  jw(Fermion(), basis, from, to)
+#             M[ind1, ind2] += hop
+
+#         end
+
+#     end 
+
+#     return M
 
 
+# end 
+
+
+
+# function _corr(basis_dict :: Dict,  ::Electron, from::Int, to::Int, local_shift::Int, spin_shift::Int, Sp::Spin)
+
+#     @info "This is corr $(Sp), calculating: from $(from), to $(to), spin shift = $(spin_shift)"
+#     dim = length(keys(basis_dict))
+#     M = spzeros(dim, dim)
+#     # this represents cdag at site $site
+#     for (basis :: Tuple, ind1 :: Int) in basis_dict
+#         from += local_shift
+#         to += local_shift
+
+#         if basis[from + spin_shift] < basis[to + spin_shift] 
+#             newbasis =  collect(basis)
+#             newbasis[to + spin_shift], newbasis[from + spin_shift] = basis[from + spin_shift], basis[to + spin_shift]
+
+#             ind2 = basis_dict[Tuple(newbasis)]
+#             hop =  jw(Sp, basis, from, to, L)
+#             M[ind1, ind2] += hop
+
+#         end
+
+#     end 
+
+#     return M
+
+
+# end 
 
 
 
 function lindbladian!(du, u, p, t)
 
     h = p[1]
-    inj = p[2]
-    dep = p[3]
-    γi = p[4]
-    γd = p[5]
+
+    ops = p[2]
+    γs = p[3]
 
     du .= -1im *  commutator(h, u) 
-    du .+= γi * ( inj * u * inj' - 1/2 * anticommutator( inj' * inj, u))
-    du .+= γd * ( dep * u * dep' - 1/2 * anticommutator( dep' * dep, u))
 
+    for (i, op) in enumerate(ops)
+        du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
+    end 
+    nothing
 end
 
 
@@ -87,6 +175,7 @@ function lindbladian(u, p, t)
     du = -1im *  commutator(h, u) 
 
     for (i, op) in enumerate(ops)
+        #du += γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
         du += γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
     end 
 
@@ -99,7 +188,7 @@ function gen_ρ(qn, Par, Geo)
     basis = gen_basis(qn, Par, Geo)
     dim = length(basis) 
     
-    ρ = zeros(dim, dim) .* (1.0 + 0.0im)
+    ρ = zeros(ComplexF64, dim, dim) 
     
     ρ[1, 1] = 1
 
@@ -107,17 +196,22 @@ function gen_ρ(qn, Par, Geo)
     return ρ
 end 
 
+n(basis_dict :: Dict, Geo :: Geometry, site) = nup(basis_dict, Geo, site)
 
-function nup(basis_dict :: Dict, ::Electron, :: Geometry, site)
-    return _occ(basis_dict, Electron(), site, 0 )
+
+function nup(basis_dict :: Dict, :: Geometry, site)
+    return _n(basis_dict, site, 0 )
 end 
 
-function ndn(basis_dict :: Dict, ::Electron, Geo:: Geometry, site)
-    return _occ(basis_dict, Electron(), site, Geo.L )
+function ndn(basis_dict :: Dict,  Geo:: Geometry, site)
+    return _n(basis_dict, site, Geo.L )
 end 
 
 
-function _occ(basis_dict :: Dict,  ::Electron, site::Int,  spin_shift::Number  )
+nupdn(basis_dict :: Dict,  Geo:: Geometry, site) = nup(basis_dict, Geo, site) * ndn(basis_dict, Geo, site)
+
+
+function _n(basis_dict :: Dict, site::Int,  spin_shift::Number  )
 
     dim = length(keys(basis_dict))
     M = spzeros(dim, dim)

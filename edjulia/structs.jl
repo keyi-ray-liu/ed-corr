@@ -109,17 +109,17 @@ end
 
 
 
-# the structure is S, D, A
+# the structure is S, D, A, hardcoded to have 1 site
 struct SD <: Geometry
     S :: Line
     D :: Line
     A :: TwoD
     L :: Int
-    function SD(Ls, Ld, X, Y; AS = [4], AD = [6], scoup = 1.0, dcoup = 1.0)
+    function SD(X, Y; AS = [1], AD = [X * Y], scoup = 1.0, dcoup = 1.0)
         L = Ls + Ld + X * Y
 
         S = Line(Ls; hopdict = Dict( Ls => [ val + Ls + Ld for val in AS]), t = scoup)
-        D = Line(Ls; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]), t = dcoup)
+        D = Line(Ld; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]), t = dcoup)
         A = TwoD(X, Y)
         new(S, D, A, L)
     end 

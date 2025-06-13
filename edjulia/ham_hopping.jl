@@ -17,7 +17,7 @@ function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Fermion, hopdict, 
                     newbasis[to], newbasis[from] = basis[from], basis[to]
 
                     ind2 = basis_dict[Tuple(newbasis)]
-                    hop =  t * jordanwigner(Fermion(), basis, from, to)
+                    hop =  t * jw(Fermion(), basis, from, to)
                     M[ind1, ind2] += hop
                     M[ind2, ind1] += hop
                 end 
@@ -57,7 +57,7 @@ function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Electron, hopdict:
                         newbasis[to], newbasis[from] = basis[from], basis[to]
 
                         ind2 = basis_dict[Tuple(newbasis)]
-                        hop =  t* jordanwigner(Up(), basis, from, to, spin_shift)
+                        hop =  t* jw(Up(), basis, from, to, spin_shift)
                         M[ind1, ind2] += hop
 
                         if herm
@@ -73,7 +73,7 @@ function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Electron, hopdict:
                         newbasis[to + spin_shift], newbasis[from + spin_shift] = basis[from + spin_shift], basis[to + spin_shift]
 
                         ind2 = basis_dict[Tuple(newbasis)]
-                        hop =  t * jordanwigner(Dn(), basis, from, to, spin_shift)
+                        hop =  t * jw(Dn(), basis, from, to, spin_shift)
                         M[ind1, ind2] += hop
 
                         if herm
@@ -116,15 +116,17 @@ end
 
 
 
-
-jordanwigner(::Fermion, basis, from, to) = (-1) ^ ( 1 + length(findall( >(0), basis[from + 1:to - 1] )))
-
-
-function jordanwigner( ::Up, basis, from , to, L)
+# ---------- new --------------
 
 
-    up = length(findall( >(0), basis[(from ):(to - 1)] ))
-    dn = length(findall( >(0), basis[(from + L):(to -1 + L)] ))
+
+jw(::Fermion, basis, site) = (-1) ^ ( 1 + length(findall( >(0), basis[1:site - 1] )))
+
+function jw( ::Up, basis, site, L)
+
+
+    up = length(findall( >(0), basis[ 1 : site - 1] ))
+    dn = length(findall( >(0), basis[(1 + L):( site - 1 + L)] ))
 
     total = up + dn
     
@@ -132,14 +134,55 @@ function jordanwigner( ::Up, basis, from , to, L)
     return  (-1) ^ (total)
 end 
 
-function jordanwigner( ::Dn, basis, from , to, L)
+function jw( ::Dn, basis, site, L)
 
 
-    up =  length(findall( >(0), basis[(from + 1):(to )] ))
-    dn =  length(findall( >(0), basis[(from + 1 + L):(to + L )] ))
-    
+    up = length(findall( >(0), basis[ 1 : site ] ))
+    dn = length(findall( >(0), basis[(1 + L):( site - 1 + L)] ))
+
     total = up + dn
+    
     #return  (-1)^ ( 1 + length(findall( x -> x == 2 || x == 4, basis[from + 1:to - 1] )))
     return  (-1) ^ (total)
-
 end 
+
+jw( ::Fermion, basis, from, to) = jw(Fermion(), basis, from) * jw(Fermion(), basis, to)
+jw( Sp, basis, from, to, L) = jw(Sp, basis, from, L) * jw(Sp, basis, to, L)
+
+
+
+# hop_amp(td :: TwoD, :: Int, :: Int) = td.t
+# hop_amp(ln :: Line, :: Int, :: Int) = ln.t
+
+
+# function hopping_direct!(basis_dict, M,  :: Fermion, Geo)
+
+#     hopdict = Geo.hopdict
+
+#     for (from, tos) in hopdict
+#         for to in tos
+#             M += hop_amp(Geo, from, to) * ( cdag(basis_dict, Geo, from) * c(basis_dict, Geo, to) + cdag(basis_dict, Geo, to) * c(basis_dict, Geo, from) ) 
+#         end 
+#     end 
+
+#     return M
+
+# end 
+
+
+
+
+# function hopping_direct!(basis_dict, M,  :: Electron, Geo)
+
+#     hopdict = Geo.hopdict
+
+#     for (from, tos) in hopdict
+#         for to in tos
+#             M += hop_amp(Geo, from, to)* ( cdagup(basis_dict, Geo, from) * cup(basis_dict, Geo, to) + cdagup(basis_dict, Geo, to) * cup(basis_dict, Geo, from) )
+#             M += hop_amp(Geo, from, to) * ( cdagdn(basis_dict, Geo, from) * cdn(basis_dict, Geo, to) + cdagdn(basis_dict, Geo, to) * cdn(basis_dict, Geo, from) )
+#         end 
+#     end 
+
+#     return M
+
+# end 
