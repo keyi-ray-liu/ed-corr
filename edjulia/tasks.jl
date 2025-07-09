@@ -289,36 +289,79 @@ end
 
 
 
-function markov_test()
+function markovian()
 
 
     Geo = TwoD(2, 2)
+    systag = get_systag(Geo)
     #Geo = SD(1, 1, 2, 2; AS =[1], AD = [4],)
 
     #Par = Fermion() 
+
     Par = Electron(; 
     U = 4.0
     )
-    Coul = Coulomb(
-        2.0,
-         -1.0, 
-         0.5, 0.5, 0.2)#[0.1, 1.0, 10.0, 100.0]
 
-    γ = 2.0
-    G1 = -20.0
+    Coul = Coulomb(
+    2.0,
+    -1.0, 
+    0.5, 0.5, 0.2)#[0.1, 1.0, 10.0, 100.0]
+
+    γs = [0.01, 0.1, 0.5, 5.0]
+    
+    
+    G1 = 0.0
     G2 = 0.0
     #bias = Bias( [0, 0, G1, G2, 0, 0])
 
+    devicebias = 0.0
+    bias = Bias( [0, G1, G2, 0] .+ devicebias)
 
-    bias = Bias( [0, G1, G2, 0])
+    states = [
+        (0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 0, 0, 0, 1, 0, 0, 0),
+        (0, 0, 0, 1, 0, 0, 0, 1),
+        (0, 1, 1, 0, 0, 1, 1, 0),
+    ]
 
-    filestr = "test/g$(γ)_G$(G1)_G$(G2)_U$(Par.U)_Coul$(Bool(Coul.ee != 0))/"
+    for γ in γs
 
-    ρ = gen_ρ(Not_conserved(), Par, Geo)
-    @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, γ, 0.0, 0.0, γ); filestr = filestr, start = 0, fin = 500, chunks = 1)
+        injdeps = [
+            InjDep(1, 4, γ, γ, γ, γ),
+            InjDep(1, 4, γ, 0, 0, γ)
+        ]
 
-    occplot(Par, filestr)
-    curplot(Par, filestr)
+        for injdep in injdeps
+            for state in states
+                top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/$(systag)/"
+                filestr = gen_file(top; 
+                    U = Par.U,
+                    Coul = Coul.ee,
+                    injs = injdep.γ_inj_source,
+                    deps = injdep.γ_dep_source,
+                    injd = injdep.γ_inj_drain,
+                    depd = injdep.γ_dep_drain,
+                    GOne = G1,
+                    GTwo = G2,
+                    devicebias = devicebias,
+                    state = join(state, "")
+                )
+
+
+                @show filestr
+
+                if !ispath(filestr * "time")
+                    ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+                    @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 500, chunks = 1)
+
+                    occplot(Par, filestr)
+                    curplot(Par, filestr)
+                end 
+            end 
+        end 
+    end 
+
+    return nothing
 end 
 
 

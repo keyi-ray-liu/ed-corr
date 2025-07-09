@@ -183,16 +183,18 @@ function lindbladian(u, p, t)
 end
 
 
-function gen_ρ(qn, Par, Geo)
+function gen_ρ(qn, Par, Geo; state = (0, 0, 0, 0, 0, 0, 0, 0))
 
     basis = gen_basis(qn, Par, Geo)
     dim = length(basis) 
     
     ρ = zeros(ComplexF64, dim, dim) 
-    
-    ρ[1, 1] = 1
 
-    @show typeof(ρ)
+    ind = findfirst( x -> x == state, collect(Iterators.flatten((basis,))))
+
+    @show ind
+    ρ[ind, ind] = 1
+
     return ρ
 end 
 

@@ -1,6 +1,6 @@
 # local shift refers to the # of sites we shift due to preceding geo (reservoir for example), spin shift is the total geo size
 
-function hubbard!(basis_dict :: Dict, M :: SparseMatrixCSC, par::Electron, Geo :: Geometry; local_shift = 0, spin_shift = Geo.L)
+function hubbard!(basis_dict :: Dict, M :: SparseMatrixCSC, par::Electron, Geo :: Geometry)
 
     L = Geo.L
     for site in 1:L

@@ -84,7 +84,6 @@ struct TwoD <: Geometry
     Y :: Int
     L :: Int
     hopdict :: Dict
-    t :: Float64
     function TwoD(X, Y; t = -1.0)
         L = X * Y
         hopdict = Dict{Int, Array}(
@@ -93,16 +92,16 @@ struct TwoD <: Geometry
 
         for x in 1:X
             for y in 1:Y - 1
-                append!(hopdict[ (x -1) * Y  + y], [ (x - 1) * Y + y + 1])
+                append!(hopdict[ (x -1) * Y  + y], [ (t, (x - 1) * Y + y + 1)])
             end 
         end 
 
         for x in 1:X - 1
             for y in 1:Y
-                append!(hopdict[ (x - 1) * Y + y], [ x * Y + y])
+                append!(hopdict[ (x - 1) * Y + y], [ (t, x * Y + y)])
             end 
         end 
-        new(X, Y, L, hopdict, t)
+        new(X, Y, L, hopdict)
     end 
 end 
 
@@ -111,17 +110,28 @@ end
 
 # the structure is S, D, A, hardcoded to have 1 site
 struct SD <: Geometry
-    S :: Line
-    D :: Line
-    A :: TwoD
     L :: Int
-    function SD(X, Y; AS = [1], AD = [X * Y], scoup = 1.0, dcoup = 1.0)
-        L = Ls + Ld + X * Y
-
-        S = Line(Ls; hopdict = Dict( Ls => [ val + Ls + Ld for val in AS]), t = scoup)
-        D = Line(Ld; hopdict = Dict( Ls + Ld => [ val + Ls + Ld for val in AD]), t = dcoup)
+    X :: Int
+    Y :: Int
+    hopdict :: Dict
+    scoup :: Float64
+    dcoup :: Float64
+    function SD(X, Y; scoup = -1.0, dcoup = -1.0)
+        L = 1 + 1 + X * Y
         A = TwoD(X, Y)
-        new(S, D, A, L)
+
+        hopdict = A.hopdict
+        
+        newhop = Dict()
+
+        for (key, value) in hopdict
+            newhop[key + 2] = [ (t, v + 2) for (t, v) in value]
+        end 
+
+        newhop[1] = [ (scoup, 3)]
+        newhop[2] = [ (dcoup, L)]
+
+        new(L, X, Y, newhop, scoup, dcoup)
     end 
 end 
 

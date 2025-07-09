@@ -58,16 +58,16 @@ end
 
 
 sanitizer(::Occupation, ::Geometry, occup, occdn) = occup', occdn'
-function sanitizer(::Occupation, sd::SD, occup, occdn)
+# function sanitizer(::Occupation, sd::SD, occup, occdn)
 
-    occup = occup'
-    occdn = occdn'
+#     occup = occup'
+#     occdn = occdn'
 
-    occup = hcat( occup[ :, 1:sd.S.L], occup[:, (sd.S.L + sd.D.L + 1):end], occup[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
-    occdn = hcat( occdn[ :, 1:sd.S.L], occdn[:, (sd.S.L + sd.D.L + 1):end], occdn[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
+#     occup = hcat( occup[ :, 1:sd.S.L], occup[:, (sd.S.L + sd.D.L + 1):end], occup[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
+#     occdn = hcat( occdn[ :, 1:sd.S.L], occdn[:, (sd.S.L + sd.D.L + 1):end], occdn[:, (sd.S.L + 1):(sd.S.L + sd.D.L)])
 
-    return occup, occdn
-end 
+#     return occup, occdn
+# end 
 
 
 
@@ -82,11 +82,11 @@ function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation;
     
 
     corr_mat_up = spzeros( size(basis, 1), size(basis, 1))
-    corr_mat_up = _hopping(basis_dict, corr_mat_up, Par, hopdict, 1.0, 0, Geo.L; dn=false, herm=false)
+    corr_mat_up = _hopping(basis_dict, corr_mat_up, Par, hopdict, 0; dn=false, herm=false)
 
 
     corr_mat_dn = spzeros( size(basis, 1), size(basis, 1))
-    corr_mat_dn = _hopping(basis_dict, corr_mat_dn, Par, hopdict, 1.0, 0, Geo.L; up=false, herm=false)
+    corr_mat_dn = _hopping(basis_dict, corr_mat_dn, Par, hopdict, Geo.L; up=false, herm=false)
 
     corr = _expectation(corr_mat_up, corr_mat_dn, Par, Geo, U, corr; filestr=filestr, save=save)
 
@@ -128,7 +128,7 @@ function _expectation(corr_mat_up :: SparseMatrixCSC, corr_mat_dn :: SparseMatri
 end 
 
 
-function expectation(qn::QN, Par::Electron, sd::SD, U, current::Current; filestr="", save=true)
+function expectation(qn::QN, Par::Electron, sd::SD, U, ::Current; filestr="", save=true)
 
 
     corr_s = expectation(qn, Par, sd, U, Correlation(sd.S.hopdict); save=false)
@@ -283,8 +283,13 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
 end 
 
 
-source(td :: TwoD) = [(td.t, 1, 2), (td.t, 1, 1 + td.X)]
-drain(td :: TwoD) = [(td.t, td.L - td.X, td.L), (td.t, td.L - 1, td.L)]
+
+source(sd :: SD) = [(sd.scoup, 1, 3)]
+drain(sd :: SD) = [(sd.dcoup, 2, sd.L)]
+
+
+source(td :: TwoD) = [(t, 1, to) for (t, to) in td.hopdict[1]]
+drain(td :: TwoD) = [(td.hopdict[td.L - td.X][1][1], td.L - td.X, td.L), (td.hopdict[td.L - 1][1][1], td.L - 1, td.L)]
 
 
 function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Current)

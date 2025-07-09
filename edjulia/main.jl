@@ -44,6 +44,7 @@ include("densitymatrix.jl")
 include("utils.jl")
 include("plotter.jl")
 include("scan.jl")
+include("test.jl")
 
 
 
@@ -52,7 +53,9 @@ if ARGS == []
 #time_evolve()
 #GS()
 #scan()
-    GG()
+    #GG()
+    markov_test()
+    #setup_test()
 
 #test()
 #gamma_scan()

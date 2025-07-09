@@ -90,7 +90,6 @@ function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
 end 
 
 
-distance(ind1, ind2, ::SD) = 0
 distance(ind1, ind2, ::Line) = abs(ind1 - ind2)
 function distance(ind1, ind2, Geo::TwoD)
 
@@ -103,4 +102,26 @@ function distance(ind1, ind2, Geo::TwoD)
     return sqrt( (x1 - x2)^2 + (y1 - y2)^2)
 
 
+end 
+
+
+function distance(ind1, ind2, sd::SD)
+
+    if ind1 < 3 || ind2 < 3
+        dis = Inf
+    else
+
+        ind1 -= 2
+        ind2 -= 2
+
+        x1 = (ind1 - 1) ÷ sd.Y
+        y1 = (ind1 - 1) % sd.Y
+
+        x2 = (ind2 - 1) ÷ sd.Y
+        y2 = (ind2 - 1) % sd.Y
+
+        dis = sqrt( (x1 - x2)^2 + (y1 - y2)^2)
+    end 
+
+    return dis
 end 
