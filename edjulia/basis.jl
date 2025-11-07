@@ -41,11 +41,20 @@ end
 
 
 function gen_basis(::Not_conserved, ::Fermion, Geo:: Geometry)
-    return Base.product([0:1 for _ in 1:Geo.L]...)
+
+    result = Base.product([0:1 for _ in 1:Geo.L]...)
+
+    result = sort(reduce(vcat,result), by = x -> count(==(1), x))
+    return result
 end 
 
 function gen_basis(::Not_conserved, ::Electron, Geo:: Geometry)
-    return Base.product([0:1 for _ in 1:(Geo.L * 2)]...)
+    result = Base.product([0:1 for _ in 1:(Geo.L * 2)]...)
+    result = sort(reduce(vcat,result), by = x -> (count(==(1), x), count(==(1), x[1:Geo.L])))
+
+    @show sizeof(result)/2^20
+    @show "basis complete"
+    return result
 end 
 
 

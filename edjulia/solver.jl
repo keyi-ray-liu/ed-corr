@@ -187,13 +187,25 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
     γs = [ 
         op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain,
      op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain,
-     ]
+    ]
+
+
+    # ops = [Matrix(op) for op in ops]
+    # h = Matrix(h)
+
 
     p = [h, ops, γs]
     tspan = (start, fin)
 
-    
+    # sparsity detector
+    #check_sparse(lindbladian!, ρ0, p)
+
     prob = ODEProblem(lindbladian!, ρ0, tspan, p)
+
+
+    @show typeof(ρ0)
+    @show typeof(h)
+    @show typeof(inj_source_up)
 
     #method = lsoda()  # recommended for large system but not complex
     #method = DP8()  # supposedly stable memory wise
@@ -209,6 +221,11 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
     progress = true, progress_steps = 1
     #saveat=tstep
     )
+
+
+    # @time solve(prob, KenCarp47(; linsolve = KrylovJL_GMRES());
+    # #save_everystep = false
+    # )
 
     #@show sizeof(sol.u) / 2^30
 

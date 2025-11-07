@@ -154,6 +154,8 @@ function lindbladian!(du, u, p, t)
     for (i, op) in enumerate(ops)
         du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
     end 
+
+    #du .= BlockBandedMatrix(du)
     nothing
 end
 

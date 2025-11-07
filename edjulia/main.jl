@@ -21,14 +21,17 @@ using Random
 using Dates
 using DelimitedFiles
 using DifferentialEquations
+using ForwardDiff
 using Distributed
 using BenchmarkTools
-using Combinatorics
+using Combinatorics: combinations
 using ArnoldiMethod
+using BlockBandedMatrices
 #using KrylovKit
 using SparseArrays
 using LSODA
 using Plots
+import SparseConnectivityTracer, ADTypes
 
 include("structs.jl")
 include("obserable.jl")
@@ -46,15 +49,20 @@ include("plotter.jl")
 include("scan.jl")
 include("test.jl")
 
-
+ForwardDiff.can_dual(::Type{ComplexF64}) = true
 
 if ARGS == []
 #task()
-#time_evolve()
+    #time_evolve_test()
+    
+    markov_test_sys()
 #GS()
 #scan()
     #GG()
-    markov_test()
+    #comb_test()
+    #check_ham_construction()
+    #test()
+    #markov_test()
     #setup_test()
 
 #test()

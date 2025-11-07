@@ -81,8 +81,8 @@ function time_evolve()
     # U = 100.0
     # gap = -1.79161798
 
-    Nup = 2
-    Ndn = 2
+    Nup = 1
+    Ndn = 1
     U = 4.0
     gap = 0.0
 
@@ -91,8 +91,8 @@ function time_evolve()
     # U = 4.0
     # gap = 0.0
 
-    Geo_init = SD(1, 1, 3, 3; scoup = 0, dcoup = 0)
-    Geo_dyna = SD(1, 1, 3, 3; scoup = -1/8, dcoup = -1/8)
+    Geo_init = SD(20, 3, 3; scoup = 0, dcoup = 0)
+    Geo_dyna = SD(20, 3, 3; scoup = -1/8, dcoup = -1/8)
     Par = Electron(Nup, Ndn, U)
     Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.0)
 
@@ -218,74 +218,6 @@ end
 
 
 
-
-function test()
-
-    Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
-
-    Geo = Line(12)
-    Par = Fermion(6)
-    
-
-    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
-    bias = Bias( [0 for _ in 1:Geo.L])
-    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
-
-    @show val
-
-    Geo = TwoD(3, 3)
-    Par = Fermion(4)
-    
-    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
-    bias = Bias( [0 for _ in 1:Geo.L])
-    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
-
-    @show val
-
-
-    Geo = TwoD(3, 3)
-    Par = Electron(3, 4, 4.0)
-    
-    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
-    bias = Bias( [0 for _ in 1:Geo.L])
-    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
-
-    @show val
-
-
-
-    Geo = TwoD(3, 3)
-    Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.2)
-    Par = Electron(3, 4, 100.0)
-    
-    #Coul = Coulomb(0.0, 0.0, 0.1, 0.1, 0.0)
-    bias = Bias( [0 for _ in 1:Geo.L])
-    val = GS(Conserved(), Par, Geo, Coul, bias; nev=1)
-
-    @show val
-    # open("ref/$(Nup)plusone", "w") do io
-    #     writedlm(io, res)
-    # end 
-    
-
-end 
-
-
-
-function check_ham_construction()
-    Geo = TwoD(3,3)
-    Par = Fermion(4)
-    Coul = Coulomb(0.0, 0.0, 0.5, 0.5, 0.2)
-    bias = Bias([0 for _ in 1:Geo.L])
-    qn = Conserved()
-
-    M1 = gen_ham(qn, Par, Geo, Coul, bias)
-    M2 = gen_ham_direct(qn, Par, Geo, Coul, bias)
-
-
-    isapprox(M1, M2)
-
-end 
 
 
 

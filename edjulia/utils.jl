@@ -33,3 +33,21 @@ function get_systag( sys)
 end 
 
 
+# function check_sparse(func, u0, p)
+
+#     detector = SparseConnectivityTracer.TracerSparsityDetector()
+
+#     @info "Real"
+
+#     du0 = real.(u0)
+#     jac_sparsity = ADTypes.jacobian_sparsity(
+#     (du, u) -> (func(du, u, p, 0.0)), du0, u0, detector)
+
+#     @info "Imag"
+#     du0 = imag.(u0)
+#     jac_sparsity = ADTypes.jacobian_sparsity(
+#     (du, u) -> func(du, u, p, 0.0), du0, u0, detector)
+
+# end 
+
+

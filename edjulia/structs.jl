@@ -66,16 +66,15 @@ get_name(Par:: Electron) = "$(Par.Nup)Up$(Par.Ndn)DnU$(Par.U)"
 struct Line <: Geometry 
     L :: Int
     hopdict :: Dict
-    t :: Float64
     function Line(L :: Int; t = -1.0, hopdict = nothing)
         #only hops to later in the chain
 
         if !(typeof(hopdict)  <: Dict)
             hopdict = Dict(
-                i => [i + 1] for i in 1:L - 1
+                i => [(t, i + 1)] for i in 1:L - 1
             )
         end 
-        new(L, hopdict, t)
+        new(L, hopdict)
     end 
 end 
 
@@ -116,8 +115,8 @@ struct SD <: Geometry
     hopdict :: Dict
     scoup :: Float64
     dcoup :: Float64
-    function SD(X, Y; scoup = -1.0, dcoup = -1.0)
-        L = 1 + 1 + X * Y
+    function SD(X, Y; scoup = -1.0, dcoup = -1.0, res = 1, ω = -1.0)
+        L = res  + res + X * Y
         A = TwoD(X, Y)
 
         hopdict = A.hopdict
@@ -125,19 +124,31 @@ struct SD <: Geometry
         newhop = Dict()
 
         for (key, value) in hopdict
-            newhop[key + 2] = [ (t, v + 2) for (t, v) in value]
+            newhop[key + 2 * res] = [ (t, v + 2 * res) for (t, v) in value]
         end 
 
-        newhop[1] = [ (scoup, 3)]
-        newhop[2] = [ (dcoup, L)]
+        # connect
+        newhop[res] = [ (scoup, 2 * res + 1)]
+        newhop[res + 1] = [ (dcoup, L)]
 
+        # internal
+
+        for nxt in 1:res - 1
+            #source
+            newhop[nxt] = [ (ω, nxt + 1)]
+
+            #drain
+            newhop[nxt + res] = [ (ω, nxt + 1 + res)]
+        end 
+        
+        @show newhop
         new(L, X, Y, newhop, scoup, dcoup)
     end 
 end 
 
 get_name(Geo :: Line) = "Line" * string(Geo.L)
 get_name(Geo:: TwoD) = "$(string(Geo.X))x$(string(Geo.Y))-single"
-get_name(Geo::SD) = "SD$(get_name(Geo.A))"
+get_name(Geo::SD) = "SD$(string(Geo.X))x$(string(Geo.Y))res$(string(Geo.L))"
 
 struct Coulomb  <: Parameter
     ee :: Float64
@@ -156,3 +167,11 @@ struct TimeControl <: Parameter
     fin :: Number
     dt :: Number
 end 
+
+
+
+
+
+RefCoul =  Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+StrongCoul = Coulomb(200.0, -100.0, 0.5, 0.5, 0.2)
+ZeroCoul = Coulomb(0.0, 0.0, 0.5, 0.5, 0.2)
