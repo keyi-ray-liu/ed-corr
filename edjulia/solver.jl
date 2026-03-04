@@ -209,13 +209,13 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
 
     #method = lsoda()  # recommended for large system but not complex
     #method = DP8()  # supposedly stable memory wise
-    #method = VCABM() # very large system?
-    method = Tsit5()  # out of memory for 500? 
+    #method = VCABM() # very large systemme?
+    #method = Tsit5()  # out of memory for 500? 
     #method = Vern7()
     #method = DP5()
-
-    #method = Rodas4P() # stiff for med tol? not vect
-    # method = Vern9() #FBDF() # stiff , high tol, vec?
+    #method = Rodas5P()
+    # method = Rodas4P() # stiff for d tol? not vect
+    method = Vern9() #FBDF() # stiff , high tol, vec?
 
     @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
     progress = true, progress_steps = 1

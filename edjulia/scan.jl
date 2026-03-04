@@ -43,30 +43,58 @@ end
 
 function gamma_scan()
 
-    γs = 10.0 .^ (-1:0.1:2.0) #[0.1, 1.0, 10.0, 100.0]
+
+    
+    γs = 10.0 .^ (-2:0.1:1.0) #[0.1, 1.0, 10.0, 100.0]
+    Us = [1.0, 10.0, 100.0]
 
     Threads.@threads for γ in γs
-
         Geo = TwoD(2, 2)
-
+        #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
+        systag = get_systag(Geo)
         #Par = Fermion() 
-        Par = Electron(; U = 4.0)
-        Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+        for U in Us
+            Par = Electron(; U = U)
 
-        G1 = -0.0
-        G2 = 0.0
+            Coul = ZeroCoul
 
-        G1 = trunc(G1; sigdigits = 5)
-        G2 = trunc(G2; sigdigits = 5)
-        bias = Bias( [0, G1, G2, 0])
+            G1 = G2 = 0
+            devicebias = 0
+            bias = Bias([0, 0, 0, 0, 0, 0])
 
-        filestr = "test/g$(γ)_GOne$(G1)_GTwo$(G2)_U$(Par.U)_Coul$(Coul.ee)/"
+            state = (0, 0, 0, 0, 0, 0, 0, 0)
+            injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-        if !ispath(filestr * "time")
-            ρ = gen_ρ(Not_conserved(), Par, Geo)
-            odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, γ, 0.0, 0.0, γ); filestr = filestr, start = 0, fin = 500, chunks = 1)
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+            filestr = gen_file(top; 
+                U = Par.U,
+                Coul = Coul.ee,
+                injs = injdep.γ_inj_source,
+                deps = injdep.γ_dep_source,
+                injd = injdep.γ_inj_drain,
+                depd = injdep.γ_dep_drain,
+                GOne = G1,
+                GTwo = G2,
+                devicebias = devicebias,
+                state = join(state, "")
+            )
 
+            @show state
+            @show filestr
+
+            if !ispath(filestr * "time")
+                ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 1000, chunks = 1)
+
+            else
+                @info "data exists! skip cal"
+            end 
+
+
+            #occplot(Par, filestr)
+            #curplot(Par, filestr)
         end 
     end 
 
+    return nothing
 end 
