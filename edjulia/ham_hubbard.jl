@@ -13,4 +13,4 @@ end
 
 
 hubbardU(::Geometry, Par :: Electron, site) = Par.U
-hubbardU( :: SD, Par :: Electron, site) = site > 2 ? Par.U : 0
+hubbardU( sd :: SD, Par :: Electron, site) = site > 2 * sd.RES ? Par.U : 0

@@ -156,87 +156,60 @@ end
 
 
 
-function markov_test_sys()
+
+function markov_test()
 
 
-    Geo = TwoD(2, 2)
+    #Geo = TwoD(2, 2)
+    Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
     systag = get_systag(Geo)
     #Par = Fermion() 
 
-    Pars = [
-        Electron(; U = 0.0),
-        Electron(; U = 4.0),
-        Electron(; U = 100.0),
-    ]
+    Par = Electron(; U = 1.0)
 
-    Couls = [ ZeroCoul, RefCoul, StrongCoul]
+    Coul = ZeroCoul
 
-    γs = [0.01, 0.5]
+    G1 = G2 = 0
+    devicebias = 0
+    γ = 0.5
+    bias = Bias([0, 0, 0, 0, 0, 0])
 
-    G1 = 0.0
-    G2 = 0.0
+    state = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,)
+    injdep = InjDep(1, 2, γ, 0.0 , 0.0, γ)
 
-    devicebias = 0.0
-    biases = [
-        Bias( [0, 0, 0, 0] .+ devicebias), 
-        Bias( [0, 10, -10.0, 0] .+ devicebias), 
-        ]
+    top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+    filestr = gen_file(top; 
+        U = Par.U,
+        Coul = Coul.ee,
+        injs = injdep.γ_inj_source,
+        deps = injdep.γ_dep_source,
+        injd = injdep.γ_inj_drain,
+        depd = injdep.γ_dep_drain,
+        GOne = G1,
+        GTwo = G2,
+        devicebias = devicebias,
+        state = join(state, "")
+    )
 
-    states = [
-        (0, 0, 0, 0, 0, 0, 0, 0),
-        (1, 0, 0, 0, 1, 0, 0, 0),
-        (1, 0, 0, 0, 0, 0, 0, 0),
-        (0, 0, 0, 1, 0, 0, 0, 1),
-    ]
+    @show state
+    @show filestr
 
-    for γ in γs
+    if !ispath(filestr * "time")
+        ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 100, chunks = 1)
 
-        injdeps = [
-            InjDep(1, 4, γ, 0.0 , 0.0, γ)
-        ]
-
-        for injdep in injdeps
-
-            for Coul in Couls
-                for Par in Pars
-                    for bias in biases
-                        for state in states
-                            top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/casestudies/$(systag)/"
-                            filestr = gen_file(top; 
-                                U = Par.U,
-                                Coul = Coul.ee,
-                                injs = injdep.γ_inj_source,
-                                deps = injdep.γ_dep_source,
-                                injd = injdep.γ_inj_drain,
-                                depd = injdep.γ_dep_drain,
-                                GOne = G1,
-                                GTwo = G2,
-                                devicebias = devicebias,
-                                state = join(state, "")
-                            )
-
-
-                            @show filestr
-
-                            if !ispath(filestr * "time")
-                                ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-                                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 100, chunks = 1)
-
-                                occplot(Par, filestr)
-                                curplot(Par, filestr)
-
-                            else
-                                @info "exists! skip"
-                            end 
-                        end 
-                    end 
-                end 
-            end 
-        end 
+    else
+        @info "data exists! skip cal"
     end 
+
+
+    occplot(Par, filestr)
+    #curplot(Par, filestr)
 
     return nothing
 end 
+
+
 
 
 

@@ -107,16 +107,17 @@ end
 
 
 
-# the structure is S, D, A, hardcoded to have 1 site
+# the structure is S, D, A
 struct SD <: Geometry
     L :: Int
     X :: Int
     Y :: Int
+    RES :: Int
     hopdict :: Dict
     scoup :: Float64
     dcoup :: Float64
-    function SD(X, Y; scoup = -1.0, dcoup = -1.0, res = 1, ω = -1.0)
-        L = res  + res + X * Y
+    function SD(X, Y; scoup = -1.0, dcoup = -1.0, RES = 1, ω = -1.0)
+        L = 2 * RES  + X * Y
         A = TwoD(X, Y)
 
         hopdict = A.hopdict
@@ -124,25 +125,28 @@ struct SD <: Geometry
         newhop = Dict()
 
         for (key, value) in hopdict
-            newhop[key + 2 * res] = [ (t, v + 2 * res) for (t, v) in value]
+            newhop[key + 2 * RES] = [ (t, v + 2 * RES) for (t, v) in value]
         end 
 
         # connect
-        newhop[res] = [ (scoup, 2 * res + 1)]
-        newhop[res + 1] = [ (dcoup, L)]
+
+        # last site of source
+        # first site of drain
+        newhop[RES ] = [ (scoup, 2 * RES + 1)]
+        newhop[RES + 1] = [ (dcoup, L)]
 
         # internal
 
-        for nxt in 1:res - 1
+        for nxt in 1:(RES - 1)
             #source
             newhop[nxt] = [ (ω, nxt + 1)]
 
             #drain
-            newhop[nxt + res] = [ (ω, nxt + 1 + res)]
+            newhop[nxt + RES] = [ (ω, nxt + 1 + res)]
         end 
         
         @show newhop
-        new(L, X, Y, newhop, scoup, dcoup)
+        new(L, X, Y, RES, newhop, scoup, dcoup)
     end 
 end 
 

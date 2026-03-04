@@ -1,17 +1,25 @@
 
-# using Pkg
+using Pkg
 
-# for strs in [
-#     "Combinatorics",
-#     "ArnoldiMethod",
-#     "DifferentialEquations",
-#     "SparseArrays",
-#     "TerminalLoggers",
-#     "LSODA"
-#     ]
+for strs in [
+    # "Combinatorics",
+    # "ArnoldiMethod",
+    # "DifferentialEquations",
+    # "SparseArrays",
+    # "TerminalLoggers",
+    # "LSODA",
+    # "ForwardDiff",
+    # "BenchmarkTools",
+    # "BlockBandedMatrices"
+    # "Plots",
+    # "SparseConnectivityTracer",
+    # "ADTypes",
+    # "HDF5"
+    # "FileIO"
+    ]
 
-#     Pkg.add(strs)
-# end 
+    Pkg.add(strs)
+end 
 
 
 
@@ -30,7 +38,9 @@ using BlockBandedMatrices
 #using KrylovKit
 using SparseArrays
 using LSODA
+using HDF5
 using Plots
+using FileIO
 import SparseConnectivityTracer, ADTypes
 
 include("structs.jl")
@@ -55,7 +65,7 @@ if ARGS == []
 #task()
     #time_evolve_test()
     
-    markov_test_sys()
+    markov_test()
 #GS()
 #scan()
     #GG()
@@ -73,7 +83,13 @@ else
         
         GG()
         #GG(float(ARGS[2]), float(ARGS[3]))
+
+    elseif ARGS[1] == "Gamma"
+
+        gamma_scan()
     end 
+
+
 end 
 
 #markov_test()

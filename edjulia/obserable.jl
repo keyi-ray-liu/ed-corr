@@ -6,6 +6,10 @@ struct Current <: Observable end
 
 struct Correlation <: Observable
     hopdict :: Dict
+    function Correlation(; hopdict = Dict())
+        new(hopdict)
+    end
+    Correlation(hopdict) = Correlation(; hopdict =hopdict)
 end 
 
 function expectation(qn::QN, Par::Particle, Geo::Geometry, U, ::Occupation; filestr="", save=true)
@@ -212,6 +216,37 @@ function expectation(qn ::QN, sol::ODESolution, Par::Particle, Geo:: Geometry, :
 
 end 
 
+function expectation(qn ::QN, sol::ODESolution, Par::Particle, Geo:: Geometry, ::Correlation; filestr="")
+
+    try
+        mkpath( filestr )
+    catch
+    end
+
+    CCups, CCdns = _expectation(qn, sol, Par, Geo, Correlation())
+    T, Nx, Ny = size(CCups)
+
+    open( "$(filestr)time", "a") do io
+        writedlm(io, round.(sol.t, sigdigits=5) )
+    end
+
+    h5open("$(filestr)CC.h5", "w") do f
+
+        dRu = create_dataset(f, "REup", Float64, dataspace(T, Nx, Ny))
+        dRd = create_dataset(f, "REdn", Float64, dataspace(T, Nx, Ny))
+        dIu = create_dataset(f, "IMup", Float64, dataspace(T, Nx, Ny))
+        dId = create_dataset(f, "IMdn", Float64, dataspace(T, Nx, Ny))
+
+        write(dRu, real.(CCups))
+        write(dRd, real.(CCdns))
+        write(dIu, imag.(CCups))
+        write(dId, imag.(CCdns))
+
+    end 
+
+
+end 
+
 
 function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Occupation)
 
@@ -332,17 +367,7 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
     sourceinds = source(Geo)
     draininds = drain(Geo)
 
-
-    cur_sup = sum([coup * corr_up(basis_dict, Geo, from, to) for (coup, from, to) in sourceinds ])
-    cur_sdn = sum([coup * corr_dn(basis_dict, Geo, from, to) for (coup, from, to) in sourceinds ])
-
-    cur_dup = sum([coup * corr_up(basis_dict, Geo, from, to) for (coup, from, to) in draininds ])
-    cur_ddn = sum([coup * corr_dn(basis_dict, Geo, from, to) for (coup, from, to) in draininds ])
-
-
-    curops = [cur_sup, cur_dup, cur_sdn, cur_ddn]
-    #curops = [cur_sup, cur_dup]
-
+    CCups, CCdns = _expectation(qn, sol, Par, Geo, Correlation())
     curs = []
     
     for ρ in sol.u
@@ -363,6 +388,46 @@ function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, 
 end 
 
 
+function _expectation(qn ::QN, sol::ODESolution, Par::Electron, Geo:: Geometry, ::Correlation)
+
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+    L = Geo.L
+
+
+    upops = Dict((from, to) => corr_up(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
+    dnops = Dict((from, to) => corr_dn(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
+
+    T = length(sol.t)
+
+    CCups = zeros(ComplexF64, T, L, L)
+    CCdns = zeros(ComplexF64, T, L, L)
+
+    @show size(CCups)
+    
+    for (tt, ρ) in enumerate(sol.u)
+
+        for i in 1:L
+            for j in i:L
+                upval = _expectation(ρ, upops[(i, j)])
+                dnval = _expectation(ρ, dnops[(i, j)])
+                CCups[tt, i, j] = upval
+                CCups[tt, j, i] = conj(upval)
+
+                CCdns[tt, i, j] = dnval
+                CCdns[tt, j, i] = conj(dnval)
+            end 
+        end 
+
+        #@show CCups[tt, :, :]
+    end 
+
+
+    return CCups, CCdns
+
+end 
+
+
 
 
 function _expectation(ρ, op :: SparseMatrixCSC)
@@ -371,5 +436,3 @@ function _expectation(ρ, op :: SparseMatrixCSC)
     return O
 
 end 
-
-

@@ -210,12 +210,12 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
     #method = lsoda()  # recommended for large system but not complex
     #method = DP8()  # supposedly stable memory wise
     #method = VCABM() # very large system?
-    #method = Tsit5()  # out of memory for 500? 
+    method = Tsit5()  # out of memory for 500? 
     #method = Vern7()
     #method = DP5()
 
     #method = Rodas4P() # stiff for med tol? not vect
-    method = Vern9() #FBDF() # stiff , high tol, vec?
+    # method = Vern9() #FBDF() # stiff , high tol, vec?
 
     @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
     progress = true, progress_steps = 1
@@ -250,8 +250,9 @@ function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
 
         cur_sol = _odesolve(h, basis_dict, Geo, ρ0, op; start = cur_start, fin = cur_fin)
 
-        expectation(Not_conserved(), cur_sol, Par, Geo, Occupation(); filestr = filestr)
-        expectation(Not_conserved(), cur_sol, Par, Geo, Current(); filestr = filestr)
+        #expectation(Not_conserved(), cur_sol, Par, Geo, Occupation(); filestr = filestr)
+        #expectation(Not_conserved(), cur_sol, Par, Geo, Current(); filestr = filestr)
+        expectation(Not_conserved(), cur_sol, Par, Geo, Correlation(); filestr = filestr)
 
         ρ0 = cur_sol.u[end]
 

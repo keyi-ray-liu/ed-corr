@@ -218,76 +218,80 @@ end
 
 
 
-
-
-
-function markovian()
+function markov_sys()
 
 
     Geo = TwoD(2, 2)
     systag = get_systag(Geo)
-    #Geo = SD(1, 1, 2, 2; AS =[1], AD = [4],)
-
     #Par = Fermion() 
 
-    Par = Electron(; 
-    U = 4.0
-    )
+    Pars = [
+        Electron(; U = 0.0),
+        Electron(; U = 4.0),
+        Electron(; U = 100.0),
+    ]
 
-    Coul = Coulomb(
-    2.0,
-    -1.0, 
-    0.5, 0.5, 0.2)#[0.1, 1.0, 10.0, 100.0]
+    Couls = [ ZeroCoul, RefCoul, StrongCoul]
 
-    γs = [0.01, 0.1, 0.5, 5.0]
-    
-    
+    γs = [0.01, 0.5]
+
     G1 = 0.0
     G2 = 0.0
-    #bias = Bias( [0, 0, G1, G2, 0, 0])
 
     devicebias = 0.0
-    bias = Bias( [0, G1, G2, 0] .+ devicebias)
+    biases = [
+        Bias( [0, 0, 0, 0] .+ devicebias), 
+        Bias( [0, 10, -10.0, 0] .+ devicebias), 
+        ]
 
     states = [
         (0, 0, 0, 0, 0, 0, 0, 0),
         (1, 0, 0, 0, 1, 0, 0, 0),
+        (1, 0, 0, 0, 0, 0, 0, 0),
         (0, 0, 0, 1, 0, 0, 0, 1),
-        (0, 1, 1, 0, 0, 1, 1, 0),
     ]
 
     for γ in γs
 
         injdeps = [
-            InjDep(1, 4, γ, γ, γ, γ),
-            InjDep(1, 4, γ, 0, 0, γ)
+            InjDep(1, 4, γ, 0.0 , 0.0, γ)
         ]
 
         for injdep in injdeps
-            for state in states
-                top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/$(systag)/"
-                filestr = gen_file(top; 
-                    U = Par.U,
-                    Coul = Coul.ee,
-                    injs = injdep.γ_inj_source,
-                    deps = injdep.γ_dep_source,
-                    injd = injdep.γ_inj_drain,
-                    depd = injdep.γ_dep_drain,
-                    GOne = G1,
-                    GTwo = G2,
-                    devicebias = devicebias,
-                    state = join(state, "")
-                )
+
+            for Coul in Couls
+                for Par in Pars
+                    for bias in biases
+                        for state in states
+                            top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/casestudies/$(systag)/"
+                            filestr = gen_file(top; 
+                                U = Par.U,
+                                Coul = Coul.ee,
+                                injs = injdep.γ_inj_source,
+                                deps = injdep.γ_dep_source,
+                                injd = injdep.γ_inj_drain,
+                                depd = injdep.γ_dep_drain,
+                                GOne = G1,
+                                GTwo = G2,
+                                devicebias = devicebias,
+                                state = join(state, "")
+                            )
 
 
-                @show filestr
+                            @show filestr
 
-                if !ispath(filestr * "time")
-                    ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-                    @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 500, chunks = 1)
+                            if !ispath(filestr * "time")
+                                ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+                                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 100, chunks = 1)
 
-                    occplot(Par, filestr)
-                    curplot(Par, filestr)
+                                occplot(Par, filestr)
+                                curplot(Par, filestr)
+
+                            else
+                                @info "exists! skip"
+                            end 
+                        end 
+                    end 
                 end 
             end 
         end 
@@ -298,35 +302,68 @@ end
 
 
 
+
+
+
 function gamma_scan()
 
-    γs = 10.0 .^ (-1:0.1:2.0) #[0.1, 1.0, 10.0, 100.0]
+
+    
+    γs = 10.0 .^ (-2:0.1:1.0) #[0.1, 1.0, 10.0, 100.0]
+    Us = [1.0, 10.0, 100.0]
 
     Threads.@threads for γ in γs
-
         Geo = TwoD(2, 2)
-
+        #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
+        systag = get_systag(Geo)
         #Par = Fermion() 
-        Par = Electron(; U = 4.0)
-        Coul = Coulomb(2.0, -1.0, 0.5, 0.5, 0.2)
+        for U in Us
+            Par = Electron(; U = U)
 
-        G1 = -0.0
-        G2 = 0.0
+            Coul = ZeroCoul
 
-        G1 = trunc(G1; sigdigits = 5)
-        G2 = trunc(G2; sigdigits = 5)
-        bias = Bias( [0, G1, G2, 0])
+            G1 = G2 = 0
+            devicebias = 0
+            bias = Bias([0, 0, 0, 0, 0, 0])
 
-        filestr = "test/g$(γ)_GOne$(G1)_GTwo$(G2)_U$(Par.U)_Coul$(Coul.ee)/"
+            state = (0, 0, 0, 0, 0, 0, 0, 0)
+            injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-        if !ispath(filestr * "time")
-            ρ = gen_ρ(Not_conserved(), Par, Geo)
-            odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ ,InjDep(1, 4, γ, 0.0, 0.0, γ); filestr = filestr, start = 0, fin = 500, chunks = 1)
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+            filestr = gen_file(top; 
+                U = Par.U,
+                Coul = Coul.ee,
+                injs = injdep.γ_inj_source,
+                deps = injdep.γ_dep_source,
+                injd = injdep.γ_inj_drain,
+                depd = injdep.γ_dep_drain,
+                GOne = G1,
+                GTwo = G2,
+                devicebias = devicebias,
+                state = join(state, "")
+            )
 
+            @show state
+            @show filestr
+
+            if !ispath(filestr * "time")
+                ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 1000, chunks = 1)
+
+            else
+                @info "data exists! skip cal"
+            end 
+
+
+            #occplot(Par, filestr)
+            #curplot(Par, filestr)
         end 
     end 
 
+    return nothing
 end 
+
+
 
 
 

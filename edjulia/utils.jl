@@ -33,6 +33,28 @@ function get_systag( sys)
 end 
 
 
+function load_corr(filestr)
+
+    h5open( "$(filestr)CC.h5", "r") do f 
+
+        fRU = f["REup"]
+        fRD = f["REdn"]
+        fIU = f["IMup"]
+        fID = f["IMdn"]
+
+        RU = read(fRU)
+        RD = read(fRD)
+        IU = read(fIU)
+        ID = read(fID)
+
+        return RU, RD, IU, ID
+
+    end 
+
+    
+
+end 
+
 # function check_sparse(func, u0, p)
 
 #     detector = SparseConnectivityTracer.TracerSparsityDetector()
