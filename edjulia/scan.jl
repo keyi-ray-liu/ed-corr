@@ -49,6 +49,8 @@ function gamma_scan()
     Us = [1.0, 10.0, 100.0]
 
     Threads.@threads for γ in γs
+
+        γ = trunc(γ; sigdigits = 5)
         Geo = TwoD(2, 2)
         #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
         systag = get_systag(Geo)
@@ -60,7 +62,7 @@ function gamma_scan()
 
             G1 = G2 = 0
             devicebias = 0
-            bias = Bias([0, 0, 0, 0, 0, 0])
+            bias = Bias([0, 0, 0, 0])
 
             state = (0, 0, 0, 0, 0, 0, 0, 0)
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
