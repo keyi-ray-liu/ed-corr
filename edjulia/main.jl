@@ -16,6 +16,7 @@ for strs in [
     # "ADTypes",
     # "HDF5"
     # "FileIO"
+    # "OrdinaryDiffEqLinear"
     ]
 
     Pkg.add(strs)
@@ -41,6 +42,7 @@ using LSODA
 using HDF5
 using Plots
 using FileIO
+using OrdinaryDiffEqLinear
 import SparseConnectivityTracer, ADTypes
 
 include("structs.jl")

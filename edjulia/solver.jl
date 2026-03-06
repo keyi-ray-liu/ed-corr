@@ -32,7 +32,7 @@ end
 
 
 struct GenericODE end 
-struct Exponentiation end
+struct LinearODE end
 
 # =======================================================================================================================================
 # =======================================================================================================================================
@@ -189,7 +189,7 @@ function _solver(::GenericODE, ρ0, tspan, p)
     #@show typeof(inj_source_up)
 
     #method = lsoda()  # recommended for large system but not complex
-    #method = DP8()  # supposedly stable memory wise
+    method = DP8()  # supposedly stable memory wise
     #method = VCABM() # very large systemme?
     #method = Tsit5()  # out of memory for 500? 
     #method = Vern7()
@@ -197,7 +197,7 @@ function _solver(::GenericODE, ρ0, tspan, p)
     #method = Rodas5P()
     # method = Rodas4P() # stiff for d tol? not vect
     # method = Vern9() #FBDF() # stiff , high tol, vec?
-    method = LinearExponential(krylov = :adaptive, m = 30, iop = 0)
+    # method = RKMK4()
 
     @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
     progress = true#, progress_steps = 1
@@ -215,17 +215,19 @@ function _solver(::GenericODE, ρ0, tspan, p)
 end 
 
 
-function _solver(::Exponentiation, ρ0, tspan, p)
+
+function _solver(::LinearODE, ρ0, tspan, p)
 
 
-    d = size(ρ0, 1)                 # your Hilbert dim
-    A = LiouvillianOp(lindbladian!, p, d)
+    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
 
-    u0 = vec(ρ0)  
+    @show typeof(p)
+    @show typeof(ρ0)
 
-    prob  = ODEProblem(A, u0, tspan)   # SciML allows arbitrary array geometry, but here u is a vector. :contentReference[oaicite:2]{index=2}
+    method = RKMK4()
 
-    sol = solve(prob, LinearExponential(krylov = :on, m = 30, iop = 0))
+    @time sol = solve(prob, method, dt = 1 / 4)
+
     return sol
 
 end 
@@ -269,8 +271,12 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
     
     if backendstr == "generic"
         backend = GenericODE()
-    elseif backendstr == "exp"
-        backend = Exponentiation()
+
+    elseif backendstr == "linear"
+        backend = LinearODE()
+
+    else
+        error("unknown backend")
     end 
 
     # sparsity detector
@@ -283,7 +289,7 @@ end
 
 
 
-function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "", backendstr = "exp")
+function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "", backendstr = "generic")
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)

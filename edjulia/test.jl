@@ -231,7 +231,7 @@ function markov_test()
     state = (0, 0, 0, 0, 0, 0, 0, 0,)
     injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-    top = "test/$(systag)/" #"/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+    top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
     filestr = gen_file(top; 
         U = Par.U,
         Coul = Coul.ee,
@@ -250,7 +250,7 @@ function markov_test()
 
     if !ispath(filestr * "time")
         ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 10, chunks = 1, backendstr = "generic")
+        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 50, chunks = 1, backendstr = "linear")
 
     else
         @info "data exists! skip cal"

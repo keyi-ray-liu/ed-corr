@@ -48,14 +48,16 @@ function gamma_scan()
     γs = 10.0 .^ (-2:0.1:1.0) #[0.1, 1.0, 10.0, 100.0]
     Us = [1.0, 10.0, 100.0]
 
-    Threads.@threads for γ in γs
+    for U in Us
 
-        γ = trunc(γ; sigdigits = 5)
+        U = trunc(U; sigdigits = 5)
         Geo = TwoD(2, 2)
         #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
         systag = get_systag(Geo)
         #Par = Fermion() 
-        for U in Us
+        Threads.@threads for γ in γs
+
+            γ = trunc(γ; sigdigits = 5)
             Par = Electron(; U = U)
 
             Coul = ZeroCoul
@@ -67,7 +69,7 @@ function gamma_scan()
             state = (0, 0, 0, 0, 0, 0, 0, 0)
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar5scan/$(systag)/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,

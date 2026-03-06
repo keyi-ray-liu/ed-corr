@@ -305,63 +305,7 @@ end
 
 
 
-function gamma_scan()
 
-
-    
-    γs = 10.0 .^ (-2:0.1:1.0) #[0.1, 1.0, 10.0, 100.0]
-    Us = [1.0, 10.0, 100.0]
-
-    Threads.@threads for γ in γs
-        Geo = TwoD(2, 2)
-        #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
-        systag = get_systag(Geo)
-        #Par = Fermion() 
-        for U in Us
-            Par = Electron(; U = U)
-
-            Coul = ZeroCoul
-
-            G1 = G2 = 0
-            devicebias = 0
-            bias = Bias([0, 0, 0, 0, 0, 0])
-
-            state = (0, 0, 0, 0, 0, 0, 0, 0)
-            injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
-
-            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
-            filestr = gen_file(top; 
-                U = Par.U,
-                Coul = Coul.ee,
-                injs = injdep.γ_inj_source,
-                deps = injdep.γ_dep_source,
-                injd = injdep.γ_inj_drain,
-                depd = injdep.γ_dep_drain,
-                GOne = G1,
-                GTwo = G2,
-                devicebias = devicebias,
-                state = join(state, "")
-            )
-
-            @show state
-            @show filestr
-
-            if !ispath(filestr * "time")
-                ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 1000, chunks = 1)
-
-            else
-                @info "data exists! skip cal"
-            end 
-
-
-            #occplot(Par, filestr)
-            #curplot(Par, filestr)
-        end 
-    end 
-
-    return nothing
-end 
 
 
 
