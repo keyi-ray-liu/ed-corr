@@ -157,7 +157,7 @@ end
 
 
 
-function markov_test()
+function markov_test_SD()
 
 
     #Geo = TwoD(2, 2)
@@ -196,7 +196,7 @@ function markov_test()
 
     if !ispath(filestr * "time")
         ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 100, chunks = 1)
+        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 10, chunks = 1)
 
     else
         @info "data exists! skip cal"
@@ -210,6 +210,58 @@ function markov_test()
 end 
 
 
+
+
+function markov_test()
+
+
+    Geo = TwoD(2, 2)
+    systag = get_systag(Geo)
+    #Par = Fermion() 
+
+    Par = Electron(; U = 1.0)
+
+    Coul = ZeroCoul
+
+    G1 = G2 = 0
+    devicebias = 0
+    γ = 0.5
+    bias = Bias([0, 0, 0, 0])
+
+    state = (0, 0, 0, 0, 0, 0, 0, 0,)
+    injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
+
+    top = "test/$(systag)/" #"/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+    filestr = gen_file(top; 
+        U = Par.U,
+        Coul = Coul.ee,
+        injs = injdep.γ_inj_source,
+        deps = injdep.γ_dep_source,
+        injd = injdep.γ_inj_drain,
+        depd = injdep.γ_dep_drain,
+        GOne = G1,
+        GTwo = G2,
+        devicebias = devicebias,
+        state = join(state, "")
+    )
+
+    @show state
+    @show filestr
+
+    if !ispath(filestr * "time")
+        ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 10, chunks = 1, backendstr = "generic")
+
+    else
+        @info "data exists! skip cal"
+    end 
+
+
+    occplot(Par, filestr)
+    #curplot(Par, filestr)
+
+    return nothing
+end 
 
 
 

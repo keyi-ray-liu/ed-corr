@@ -65,8 +65,8 @@ if ARGS == []
 #task()
     #time_evolve_test()
     
-    #markov_test()
-    gamma_scan()
+    markov_test()
+    #gamma_scan()
 #GS()
 #scan()
     #GG()

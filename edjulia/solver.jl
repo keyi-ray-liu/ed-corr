@@ -1,23 +1,42 @@
-# function solve(h, Geo :: Geometry)
 
-#     @assert h == transpose(h)
-#     h = Hermitian(h)
-#     eigen_h = @time eigen(h, 1:min(1, length(h)))
+# =======================================================================================================================================
+# =======================================================================================================================================
+# =======================================================================================================================================
+# experimental, benchmark liouvillian solver
 
-#     w = eigen_h.values
-#     U = eigen_h.vectors
+struct LiouvillianOp{F,P}
+    applyL!::F
+    p::P
+    d::Int  # Hilbert space dimension, so ρ is d×d and vec(ρ) is length d^2
+end
 
-#     @show w
-#     @show length(w)
-#     @show w[1], w[end]
+Base.eltype(A::LiouvillianOp) = ComplexF64  # adjust to your type
+Base.size(A::LiouvillianOp, dim::Int) = (dim == 1 || dim == 2) ? A.d^2 : 1
+Base.size(A::LiouvillianOp) = (A.d^2, A.d^2)
+LinearAlgebra.ishermitian(::LiouvillianOp) = false  # Lindbladian generally not Hermitian
 
-#     open( "ref/energy" * get_name(Geo), "w") do io
-#         writedlm(io, w)
-#     end
+function LinearAlgebra.mul!(y::AbstractVector, A::LiouvillianOp, x::AbstractVector)
+    d = A.d
+    @assert length(x) == d*d
+    @assert length(y) == d*d
 
-# end 
+    # Zero-copy views: reinterpret vec -> matrix without allocating
+    ρ  = reshape(x, d, d)
+    dρ = reshape(y, d, d)
+
+    # Apply Lindbladian in-place (your code)
+    A.applyL!(dρ, ρ, A.p, 0)
+
+    return y
+end
 
 
+struct GenericODE end 
+struct Exponentiation end
+
+# =======================================================================================================================================
+# =======================================================================================================================================
+# =======================================================================================================================================
 
 function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_diag(), nev=min(2, length(h)))
 
@@ -160,7 +179,58 @@ end
 
 
 
-function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0, fin = 500)
+function _solver(::GenericODE, ρ0, tspan, p)
+
+
+    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
+
+    @show typeof(p)
+    @show typeof(ρ0)
+    #@show typeof(inj_source_up)
+
+    #method = lsoda()  # recommended for large system but not complex
+    #method = DP8()  # supposedly stable memory wise
+    #method = VCABM() # very large systemme?
+    #method = Tsit5()  # out of memory for 500? 
+    #method = Vern7()
+    #method = DP5()
+    #method = Rodas5P()
+    # method = Rodas4P() # stiff for d tol? not vect
+    # method = Vern9() #FBDF() # stiff , high tol, vec?
+    method = LinearExponential(krylov = :adaptive, m = 30, iop = 0)
+
+    @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
+    progress = true#, progress_steps = 1
+    #saveat=tstep
+    )
+
+
+    # @time solve(prob, KenCarp47(; linsolve = KrylovJL_GMRES());
+    # #save_everystep = false
+    # )
+
+    #@show sizeof(sol.u) / 2^30
+    return sol
+
+end 
+
+
+function _solver(::Exponentiation, ρ0, tspan, p)
+
+
+    d = size(ρ0, 1)                 # your Hilbert dim
+    A = LiouvillianOp(lindbladian!, p, d)
+
+    u0 = vec(ρ0)  
+
+    prob  = ODEProblem(A, u0, tspan)   # SciML allows arbitrary array geometry, but here u is a vector. :contentReference[oaicite:2]{index=2}
+
+    sol = solve(prob, LinearExponential(krylov = :on, m = 30, iop = 0))
+    return sol
+
+end 
+
+function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0, fin = 500, backendstr = "exp")
 
     #   ---------- up -------------
 
@@ -196,38 +266,16 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
 
     p = [h, ops, γs]
     tspan = (start, fin)
+    
+    if backendstr == "generic"
+        backend = GenericODE()
+    elseif backendstr == "exp"
+        backend = Exponentiation()
+    end 
 
     # sparsity detector
     #check_sparse(lindbladian!, ρ0, p)
-
-    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
-
-
-    @show typeof(ρ0)
-    @show typeof(h)
-    @show typeof(inj_source_up)
-
-    #method = lsoda()  # recommended for large system but not complex
-    #method = DP8()  # supposedly stable memory wise
-    #method = VCABM() # very large systemme?
-    #method = Tsit5()  # out of memory for 500? 
-    #method = Vern7()
-    #method = DP5()
-    #method = Rodas5P()
-    # method = Rodas4P() # stiff for d tol? not vect
-    method = Vern9() #FBDF() # stiff , high tol, vec?
-
-    @time sol = solve(prob, method, reltol = 1e-5, abstol = 1e-5, 
-    progress = true, progress_steps = 1
-    #saveat=tstep
-    )
-
-
-    # @time solve(prob, KenCarp47(; linsolve = KrylovJL_GMRES());
-    # #save_everystep = false
-    # )
-
-    #@show sizeof(sol.u) / 2^30
+    sol = _solver(backend, ρ0, tspan, p)
 
     return sol
 
@@ -235,20 +283,21 @@ end
 
 
 
-function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "")
+function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "", backendstr = "exp")
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 
     stops = collect(range(start, fin, length = chunks + 1))
+    
 
     for ind in eachindex(stops[1:end - 1])
 
         cur_start = stops[ind]
         cur_fin = stops[ind + 1]
 
-        cur_sol = _odesolve(h, basis_dict, Geo, ρ0, op; start = cur_start, fin = cur_fin)
+        cur_sol = _odesolve(h, basis_dict, Geo, ρ0, op; start = cur_start, fin = cur_fin, backendstr = backendstr)
 
         #expectation(Not_conserved(), cur_sol, Par, Geo, Occupation(); filestr = filestr)
         #expectation(Not_conserved(), cur_sol, Par, Geo, Current(); filestr = filestr)
