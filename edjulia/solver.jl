@@ -4,35 +4,11 @@
 # =======================================================================================================================================
 # experimental, benchmark liouvillian solver
 
-struct LiouvillianOp{F,P}
-    applyL!::F
-    p::P
-    d::Int  # Hilbert space dimension, so ρ is d×d and vec(ρ) is length d^2
-end
-
-Base.eltype(A::LiouvillianOp) = ComplexF64  # adjust to your type
-Base.size(A::LiouvillianOp, dim::Int) = (dim == 1 || dim == 2) ? A.d^2 : 1
-Base.size(A::LiouvillianOp) = (A.d^2, A.d^2)
-LinearAlgebra.ishermitian(::LiouvillianOp) = false  # Lindbladian generally not Hermitian
-
-function LinearAlgebra.mul!(y::AbstractVector, A::LiouvillianOp, x::AbstractVector)
-    d = A.d
-    @assert length(x) == d*d
-    @assert length(y) == d*d
-
-    # Zero-copy views: reinterpret vec -> matrix without allocating
-    ρ  = reshape(x, d, d)
-    dρ = reshape(y, d, d)
-
-    # Apply Lindbladian in-place (your code)
-    A.applyL!(dρ, ρ, A.p, 0)
-
-    return y
-end
-
 
 struct GenericODE end 
 struct LinearODE end
+struct SteadyState end
+
 
 # =======================================================================================================================================
 # =======================================================================================================================================
@@ -219,22 +195,25 @@ end
 function _solver(::LinearODE, ρ0, tspan, p)
 
 
-    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
-
-    @show typeof(p)
-    @show typeof(ρ0)
-
-    method = RKMK4()
-
-    @time sol = solve(prob, method, dt = 1 / 4)
+    A = MatrixOperator(ones(2, 2), update_func! = lindbladian!)
+    prob = ODEProblem(A, ρ0, tspan, p)
+    sol = solve(prob, LieRK4(), dt = 1 / 4)
 
     return sol
 
 end 
 
-function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0, fin = 500, backendstr = "exp")
+function _solver(::SteadyState, ρ0, tspan, p)
+    prob = ODEProblem(lindbladian!, ρ0, tspan, p)
 
-    #   ---------- up -------------
+    SSprob = SteadyStateProblem(prob)
+
+    @time sol = solve(SSprob, SSRootfind())
+
+end 
+
+
+function _gen_ops(h, basis_dict, Geo :: Geometry, op :: InjDep)
 
     inj_source_up = cdagup(basis_dict, Geo, op.source_site)
     dep_source_up = cup(basis_dict,  Geo, op.source_site)
@@ -267,6 +246,16 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
 
 
     p = [h, ops, γs]
+
+    return p
+
+end 
+
+function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0, fin = 500, backendstr = "generic")
+
+    #   ---------- up -------------
+
+    p = _gen_ops(h, basis_dict, Geo, op)
     tspan = (start, fin)
     
     if backendstr == "generic"
@@ -275,10 +264,14 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
     elseif backendstr == "linear"
         backend = LinearODE()
 
+    elseif backendstr == "steadystate"
+        backend = SteadyState()
+
     else
         error("unknown backend")
     end 
 
+    
     # sparsity detector
     #check_sparse(lindbladian!, ρ0, p)
     sol = _solver(backend, ρ0, tspan, p)
@@ -313,6 +306,119 @@ function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
 
         
         
+    end 
+
+    @info "memory usage: $(Sys.maxrss()/2^30) GB"
+
+end 
+
+
+
+
+function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "")
+
+    h = gen_ham(qn, Par, Geo, Coul, bias )
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    p = _gen_ops(h, basis_dict, Geo, op)
+    N = size(basis, 1)
+
+    L = Geo.L
+    T = length(start:dt:fin)
+
+    upops = Dict((from, to) => corr_up(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
+    dnops = Dict((from, to) => corr_dn(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
+
+    CCups = zeros(ComplexF64, T, L, L)
+    CCdns = zeros(ComplexF64, T, L, L)
+    
+    function L_action(u)
+
+        u = reshape(u, N, N)
+
+        h = p[1]
+        ops = p[2]
+        γs = p[3]
+
+        du = -1im *  commutator(h, u) 
+
+        for (i, op) in enumerate(ops)
+            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
+        end 
+
+        #du .= BlockBandedMatrix(du)
+        du = vec(du)
+
+        return du
+    end
+
+    #L_map = LinearMap(L_action!, N^2, ismutating=true, ishermitian = false, issymmetric = false)
+    ρ = ρ0
+    # expectation at 0
+    for i in 1:L
+        for j in i:L
+            upval = _expectation(ρ, upops[(i, j)])
+            dnval = _expectation(ρ, dnops[(i, j)])
+            CCups[1, i, j] = upval
+            CCups[1, j, i] = conj(upval)
+
+            CCdns[1, i, j] = dnval
+            CCdns[1, j, i] = conj(dnval)
+        end 
+    end 
+
+    for (tt, t) in enumerate(start:dt:fin)
+
+        @show tt, t
+
+        #ρ_vec = expv(t, L_map, vec(ρ0))
+        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ))
+        @show info
+
+        ρ = reshape(ρ_vec, N, N)
+        
+        @show size(ρ)
+        
+        # expectation
+        for i in 1:L
+            for j in i:L
+                upval = _expectation(ρ, upops[(i, j)])
+                dnval = _expectation(ρ, dnops[(i, j)])
+                CCups[tt + 1, i, j] = upval
+                CCups[tt + 1, j, i] = conj(upval)
+
+                CCdns[tt + 1, i, j] = dnval
+                CCdns[tt + 1, j, i] = conj(dnval)
+            end 
+        end 
+  
+    end 
+
+
+    T, Nx, Ny = size(CCups)
+    try
+        mkpath( filestr )
+    catch
+    end
+
+
+    open( "$(filestr)time", "w") do io
+        writedlm(io, round.(collect(start:dt:fin), sigdigits=5) )
+    end
+
+    h5open("$(filestr)CC.h5", "w") do f
+
+        dRu = create_dataset(f, "REup", Float64, dataspace(T, Nx, Ny))
+        dRd = create_dataset(f, "REdn", Float64, dataspace(T, Nx, Ny))
+        dIu = create_dataset(f, "IMup", Float64, dataspace(T, Nx, Ny))
+        dId = create_dataset(f, "IMdn", Float64, dataspace(T, Nx, Ny))
+
+        write(dRu, real.(CCups))
+        write(dRd, real.(CCdns))
+        write(dIu, imag.(CCups))
+        write(dId, imag.(CCdns))
+
     end 
 
     @info "memory usage: $(Sys.maxrss()/2^30) GB"

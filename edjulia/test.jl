@@ -230,11 +230,15 @@ function markov_test()
 
     state = (0, 0, 0, 0, 0, 0, 0, 0,)
     injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
+    solver = "ODE"
+    tfin = 100
 
-    top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
+    top = "/home/keyi-liu/Desktop/Code/Markovian/bench/"
     filestr = gen_file(top; 
         U = Par.U,
         Coul = Coul.ee,
+        sys = systag,
+        tfin = tfin,
         injs = injdep.γ_inj_source,
         deps = injdep.γ_dep_source,
         injd = injdep.γ_inj_drain,
@@ -242,16 +246,23 @@ function markov_test()
         GOne = G1,
         GTwo = G2,
         devicebias = devicebias,
-        state = join(state, "")
+        state = join(state, ""),
+        solver = solver
     )
 
     @show state
     @show filestr
 
+    @show @info "memory usage before set up : $(Sys.maxrss()/2^30) GB"
+
     if !ispath(filestr * "time")
         ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 50, chunks = 1, backendstr = "linear")
 
+        if solver == "ODE"
+            @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")
+        else
+            @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin)
+        end 
     else
         @info "data exists! skip cal"
     end 

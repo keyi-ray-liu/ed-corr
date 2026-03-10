@@ -141,7 +141,6 @@ end
 # end 
 
 
-
 function lindbladian!(du, u, p, t)
 
     h = p[1]

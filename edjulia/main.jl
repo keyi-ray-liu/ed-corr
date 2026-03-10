@@ -16,14 +16,17 @@ for strs in [
     # "ADTypes",
     # "HDF5"
     # "FileIO"
-    # "OrdinaryDiffEqLinear"
+    # "OrdinaryDiffEqLinear",
+    # #"LinearMaps",
+    # #"ExponentialUtilities",
+    # "KrylovKit"
     ]
 
     Pkg.add(strs)
 end 
 
 
-
+#using LinearMaps
 using TerminalLoggers#, ProgressLogging
 using LinearAlgebra
 using Random
@@ -36,13 +39,14 @@ using BenchmarkTools
 using Combinatorics: combinations
 using ArnoldiMethod
 using BlockBandedMatrices
-#using KrylovKit
+using KrylovKit
 using SparseArrays
 using LSODA
 using HDF5
 using Plots
 using FileIO
 using OrdinaryDiffEqLinear
+#using ExponentialUtilities
 import SparseConnectivityTracer, ADTypes
 
 include("structs.jl")
