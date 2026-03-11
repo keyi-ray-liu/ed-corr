@@ -325,7 +325,8 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
     N = size(basis, 1)
 
     L = Geo.L
-    T = length(start:dt:fin)
+    Ts = start:dt:(fin - dt)
+    T = length(Ts) + 1
 
     upops = Dict((from, to) => corr_up(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
     dnops = Dict((from, to) => corr_dn(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
@@ -368,7 +369,7 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
         end 
     end 
 
-    for (tt, t) in enumerate(start:dt:fin)
+    for (tt, t) in enumerate(Ts)
 
         @show tt, t
 

@@ -230,8 +230,9 @@ function markov_test()
 
     state = (0, 0, 0, 0, 0, 0, 0, 0,)
     injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
-    solver = "ODE"
+    solver = "exp"
     tfin = 100
+    dt = 100
 
     top = "/home/keyi-liu/Desktop/Code/Markovian/bench/"
     filestr = gen_file(top; 
@@ -247,7 +248,8 @@ function markov_test()
         GTwo = G2,
         devicebias = devicebias,
         state = join(state, ""),
-        solver = solver
+        solver = solver,
+        dt = dt
     )
 
     @show state
@@ -261,7 +263,7 @@ function markov_test()
         if solver == "ODE"
             @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")
         else
-            @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin)
+            @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt)
         end 
     else
         @info "data exists! skip cal"

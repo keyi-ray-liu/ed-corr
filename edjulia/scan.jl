@@ -45,8 +45,10 @@ function gamma_scan()
 
 
     
-    γs = 10.0 .^ (-2:0.1:1.0) #[0.1, 1.0, 10.0, 100.0]
+    γs = 10.0 .^ (-2:0.1:2.0) #[0.1, 1.0, 10.0, 100.0]
     Us = [1.0, 10.0, 100.0]
+    tfin = 500
+    dt = 500
 
     for U in Us
 
@@ -54,6 +56,7 @@ function gamma_scan()
         Geo = TwoD(2, 2)
         #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
         systag = get_systag(Geo)
+        solver = "exp"
         #Par = Fermion() 
         Threads.@threads for γ in γs
 
@@ -69,10 +72,12 @@ function gamma_scan()
             state = (0, 0, 0, 0, 0, 0, 0, 0)
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar5scan/$(systag)/"
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar11EXP/$(systag)/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,
+                sys = systag,
+                tfin = tfin,
                 injs = injdep.γ_inj_source,
                 deps = injdep.γ_dep_source,
                 injd = injdep.γ_inj_drain,
@@ -80,16 +85,20 @@ function gamma_scan()
                 GOne = G1,
                 GTwo = G2,
                 devicebias = devicebias,
-                state = join(state, "")
+                state = join(state, ""),
+                solver = solver,
+                dt = dt
             )
 
-            @show state
-            @show filestr
 
             if !ispath(filestr * "time")
                 ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-                @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 1000, chunks = 1)
 
+                if solver == "ODE"
+                    @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")
+                else
+                    @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt)
+                end 
             else
                 @info "data exists! skip cal"
             end 
