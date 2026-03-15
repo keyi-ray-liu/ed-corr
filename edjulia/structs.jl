@@ -104,6 +104,46 @@ struct TwoD <: Geometry
     end 
 end 
 
+"""1, is contact, 4 is drain, 5 is center, \n
+   2
+ 1-5-4
+   3
+"""
+struct FIVE <: Geometry
+    L :: Int
+    hopdict :: Dict
+    function FIVE(; t = -1.0, tc = -1.0)
+        L = 5
+        hopdict = Dict{Int, Array}(
+            1 => [ (t, 2), (t, 3), (tc, 5)],
+            2 => [ (t, 4), (tc, 5)],
+            3 => [ (t, 4), (tc, 5)],
+            4 => [(tc, 5)],
+            5 => []
+
+        )
+        new( L, hopdict)
+    end 
+end 
+
+
+"""1, is contact, 4 is drain, but 1 has connection to 4"""
+struct FRUSTRATION_4 <: Geometry
+    L :: Int
+    hopdict :: Dict
+    function FRUSTRATION_4(; t = -1.0)
+        L = 5
+        hopdict = Dict{Int, Array}(
+            1 => [ (t, 2), (t, 3), (t, 4)],
+            2 => [ (t, 4)],
+            3 => [ (t, 4)],
+            4 => []
+
+        )
+        new(L, hopdict)
+    end 
+end 
+
 
 
 

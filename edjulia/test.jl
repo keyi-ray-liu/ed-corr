@@ -157,65 +157,16 @@ end
 
 
 
-function markov_test_SD()
-
-
-    #Geo = TwoD(2, 2)
-    Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
-    systag = get_systag(Geo)
-    #Par = Fermion() 
-
-    Par = Electron(; U = 1.0)
-
-    Coul = ZeroCoul
-
-    G1 = G2 = 0
-    devicebias = 0
-    γ = 0.5
-    bias = Bias([0, 0, 0, 0, 0, 0])
-
-    state = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,)
-    injdep = InjDep(1, 2, γ, 0.0 , 0.0, γ)
-
-    top = "/home/keyi-liu/Desktop/Code/Markovian/Mar2test/$(systag)/"
-    filestr = gen_file(top; 
-        U = Par.U,
-        Coul = Coul.ee,
-        injs = injdep.γ_inj_source,
-        deps = injdep.γ_dep_source,
-        injd = injdep.γ_inj_drain,
-        depd = injdep.γ_dep_drain,
-        GOne = G1,
-        GTwo = G2,
-        devicebias = devicebias,
-        state = join(state, "")
-    )
-
-    @show state
-    @show filestr
-
-    if !ispath(filestr * "time")
-        ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
-        @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = 10, chunks = 1)
-
-    else
-        @info "data exists! skip cal"
-    end 
-
-
-    occplot(Par, filestr)
-    #curplot(Par, filestr)
-
-    return nothing
-end 
-
-
-
 
 function markov_test()
 
 
-    Geo = TwoD(2, 2)
+    krylovdim = 20
+    maxiter = 100
+    tol = 1e-10
+
+    #Geo = TwoD(2, 2)
+    Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02, )
     systag = get_systag(Geo)
     #Par = Fermion() 
 
@@ -225,14 +176,14 @@ function markov_test()
 
     G1 = G2 = 0
     devicebias = 0
-    γ = 0.5
-    bias = Bias([0, 0, 0, 0])
+    γ = 0.05
+    bias = Bias([0 for _ in 1:Geo.L])
 
-    state = (0, 0, 0, 0, 0, 0, 0, 0,)
-    injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
+    state = Tuple([0 for _ in 1:Geo.L * 2])
+    injdep = InjDep(1, Geo.L, γ, 0.0 , 0.0, γ)
     solver = "exp"
-    tfin = 100
-    dt = 100
+    tfin = 1000
+    dt = 10
 
     top = "/home/keyi-liu/Desktop/Code/Markovian/bench/"
     filestr = gen_file(top; 
@@ -263,7 +214,7 @@ function markov_test()
         if solver == "ODE"
             @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")
         else
-            @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt)
+            @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol, writeateverystep = true)
         end 
     else
         @info "data exists! skip cal"

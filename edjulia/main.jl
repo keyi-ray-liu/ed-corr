@@ -72,7 +72,8 @@ if ARGS == []
     #time_evolve_test()
     
     #markov_test()
-    gamma_scan()
+    gamma_scan(; Geo = FRUSTRATION_4())
+    gamma_scan(; Geo = FIVE())
 #GS()
 #scan()
     #GG()

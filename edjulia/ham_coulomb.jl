@@ -20,26 +20,28 @@ function ee(basis, ::Fermion, Coul::Coulomb, Geo :: Geometry)
     nonzero = findall( >(0), basis)
     comb = combinations(nonzero, 2)
 
+    if Coul.ee != 0
+        for (ind1, ind2) in comb
 
-    for (ind1, ind2) in comb
-
-        dist = distance(ind1, ind2, Geo)
-        r = dist + Coul.ζ_ee
-        factor = dist == 1 ? 1 - Coul.exch : 1
-        val += Coul.ee * factor / r
+            dist = distance(ind1, ind2, Geo)
+            r = dist + Coul.ζ_ee
+            factor = dist == 1 ? 1 - Coul.exch : 1
+            val += Coul.ee * factor / r
+        end 
     end 
 
+    if Coul.ne != 0
+        for ind in eachindex(basis)
+            for ind2 in nonzero
 
-    for ind in eachindex(basis)
-        for ind2 in nonzero
+                if ind != ind2
 
-            if ind != ind2
-
-                r = distance(ind, ind2, Geo) + Coul.ζ_ne
-                val += Coul.ne / r
+                    r = distance(ind, ind2, Geo) + Coul.ζ_ne
+                    val += Coul.ne / r
+                end 
             end 
-        end 
-    end     
+        end     
+    end 
 
     return val
 
@@ -53,37 +55,39 @@ function ee(basis, ::Electron, Coul::Coulomb, Geo::Geometry)
     comb = combinations(nonzero, 2)
     L = Geo.L
 
+    if Coul.ee != 0
+        for (ind1, ind2) in comb
 
-    for (ind1, ind2) in comb
-
-        ind1 -= ind1 > L ? L : 0
-        ind2 -= ind2 > L ? L : 0
+            ind1 -= ind1 > L ? L : 0
+            ind2 -= ind2 > L ? L : 0
 
 
-        if ind1 != ind2
+            if ind1 != ind2
 
-            dist = distance(ind1, ind2, Geo)
-            r = dist + Coul.ζ_ee
-            factor = dist == 1 ? 1 - Coul.exch : 1
-            val += Coul.ee * factor  / r
-            
+                dist = distance(ind1, ind2, Geo)
+                r = dist + Coul.ζ_ee
+                factor = dist == 1 ? 1 - Coul.exch : 1
+                val += Coul.ee * factor  / r
+                
+            end 
         end 
     end 
 
+    if Coul.ne != 0
+        for ind in eachindex(basis[1:L])
+            for ind2 in nonzero
 
-    for ind in eachindex(basis[1:L])
-        for ind2 in nonzero
+                ind2 -= ind2 > L ? L : 0
 
-            ind2 -= ind2 > L ? L : 0
+                if ind != ind2
+                    r = distance(ind, ind2, Geo) + Coul.ζ_ne
 
-            if ind != ind2
-                r = distance(ind, ind2, Geo) + Coul.ζ_ne
-
-                # count for nuclear spin
-                val += Coul.ne  / r
+                    # count for nuclear spin
+                    val += Coul.ne  / r
+                end 
             end 
-        end 
-    end     
+        end     
+    end 
 
     return val
 

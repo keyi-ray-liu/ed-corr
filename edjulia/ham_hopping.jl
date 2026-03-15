@@ -134,10 +134,6 @@ jw( Sp, basis, from, to, L) = jw(Sp, basis, from, L) * jw(Sp, basis, to, L)
 
 
 
-# hop_amp(td :: TwoD, :: Int, :: Int) = td.t
-# hop_amp(ln :: Line, :: Int, :: Int) = ln.t
-
-
 # function hopping_direct!(basis_dict, M,  :: Fermion, Geo)
 
 #     hopdict = Geo.hopdict

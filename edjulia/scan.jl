@@ -41,19 +41,26 @@ end
 
 
 
-function gamma_scan()
+function gamma_scan(; Geo = nothing)
 
 
     
-    γs = 10.0 .^ (-2:0.1:2.0) #[0.1, 1.0, 10.0, 100.0]
+    γs = 10.0 .^ (-2:0.1:3.0) #[0.1, 1.0, 10.0, 100.0]
     Us = [1.0, 10.0, 100.0]
     tfin = 500
     dt = 500
 
+    krylovdim = 90
+    maxiter = 500
+    tol = 1e-11
+
     for U in Us
 
         U = trunc(U; sigdigits = 5)
-        Geo = TwoD(2, 2)
+
+        if isnothing(Geo)
+            Geo = TwoD(2, 2)
+        end 
         #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02)
         systag = get_systag(Geo)
         solver = "exp"
@@ -67,12 +74,12 @@ function gamma_scan()
 
             G1 = G2 = 0
             devicebias = 0
-            bias = Bias([0, 0, 0, 0])
+            bias = Bias([0 for _ in 1:Geo.L])
 
-            state = (0, 0, 0, 0, 0, 0, 0, 0)
+            state = Tuple([0 for _ in 1:Geo.L * 2])
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar11EXP/$(systag)/"
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,
@@ -97,7 +104,7 @@ function gamma_scan()
                 if solver == "ODE"
                     @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")
                 else
-                    @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt)
+                    @time expsolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol)
                 end 
             else
                 @info "data exists! skip cal"

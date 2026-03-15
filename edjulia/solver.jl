@@ -314,8 +314,9 @@ end
 
 
 
+"""all default Krylov parameters are consistent with KrylovKit """
+function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false)
 
-function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "")
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)
@@ -324,8 +325,13 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
     p = _gen_ops(h, basis_dict, Geo, op)
     N = size(basis, 1)
 
+    try
+        mkpath( filestr )
+    catch
+    end
+
     L = Geo.L
-    Ts = start:dt:(fin - dt)
+    Ts = (start + dt):dt:fin
     T = length(Ts) + 1
 
     upops = Dict((from, to) => corr_up(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
@@ -369,13 +375,24 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
         end 
     end 
 
+    if writeateverystep
+        open( "$(filestr)timetemp", "w") do io
+            writedlm(io, 0 )
+        end
+    end 
+
     for (tt, t) in enumerate(Ts)
 
         @show tt, t
 
         #ρ_vec = expv(t, L_map, vec(ρ0))
-        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ))
+        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol)
         @show info
+
+        if info.converged == 0
+            @warn "Krylov iteration failed at step $step. Aborting simulation."
+            return nothing 
+        end
 
         ρ = reshape(ρ_vec, N, N)
         
@@ -393,35 +410,28 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
                 CCdns[tt + 1, j, i] = conj(dnval)
             end 
         end 
+
+        if writeateverystep
+            open( "$(filestr)timetemp", "a") do io
+                writedlm(io, round(t, sigdigits=5) )
+            end
+
+            write_corr(filestr, CCups[ 1:tt + 1, :, :], CCdns[ 1:tt + 1, :, :]; tag = "temp")
+
+
+        end 
   
     end 
-
-
-    T, Nx, Ny = size(CCups)
-    try
-        mkpath( filestr )
-    catch
-    end
 
 
     open( "$(filestr)time", "w") do io
         writedlm(io, round.(collect(start:dt:fin), sigdigits=5) )
     end
 
-    h5open("$(filestr)CC.h5", "w") do f
-
-        dRu = create_dataset(f, "REup", Float64, dataspace(T, Nx, Ny))
-        dRd = create_dataset(f, "REdn", Float64, dataspace(T, Nx, Ny))
-        dIu = create_dataset(f, "IMup", Float64, dataspace(T, Nx, Ny))
-        dId = create_dataset(f, "IMdn", Float64, dataspace(T, Nx, Ny))
-
-        write(dRu, real.(CCups))
-        write(dRd, real.(CCdns))
-        write(dIu, imag.(CCups))
-        write(dId, imag.(CCdns))
-
-    end 
+    write_corr(filestr, CCups, CCdns)
 
     @info "memory usage: $(Sys.maxrss()/2^30) GB"
+
+    return nothing
 
 end 

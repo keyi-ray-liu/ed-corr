@@ -27,6 +27,15 @@ function get_systag( sys)
         X = sys.X
         dim = Int(X)
         tag = "SD$(dim)x$(dim)"
+
+    elseif typeof(sys) == FRUSTRATION_4
+        tag = "FRUSTRATION4"
+
+    elseif typeof(sys) == FIVE
+        tag = "FIVE"
+
+    else
+        error("$(sys): unknown type")
     end 
 
     return tag
@@ -52,6 +61,27 @@ function load_corr(filestr)
     end 
 
     
+
+end 
+
+function write_corr(filestr, CCups, CCdns; tag = "")
+
+    T, Nx, Ny = size(CCups)
+
+
+    h5open("$(filestr)CC$(tag).h5", "w") do f
+
+        dRu = create_dataset(f, "REup", Float64, dataspace(T, Nx, Ny))
+        dRd = create_dataset(f, "REdn", Float64, dataspace(T, Nx, Ny))
+        dIu = create_dataset(f, "IMup", Float64, dataspace(T, Nx, Ny))
+        dId = create_dataset(f, "IMdn", Float64, dataspace(T, Nx, Ny))
+
+        write(dRu, real.(CCups))
+        write(dRd, real.(CCdns))
+        write(dIu, imag.(CCups))
+        write(dId, imag.(CCdns))
+
+    end 
 
 end 
 
