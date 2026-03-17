@@ -74,6 +74,7 @@ if ARGS == []
     #markov_test()
     gamma_scan(; Geo = FRUSTRATION_4())
     gamma_scan(; Geo = FIVE())
+    gamma_scan()
 #GS()
 #scan()
     #GG()

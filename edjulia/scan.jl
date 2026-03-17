@@ -47,8 +47,8 @@ function gamma_scan(; Geo = nothing)
     
     γs = 10.0 .^ (-2:0.1:3.0) #[0.1, 1.0, 10.0, 100.0]
     Us = [1.0, 10.0, 100.0]
-    tfin = 500
-    dt = 500
+    tfin = 750
+    dt = 250
 
     krylovdim = 90
     maxiter = 500
@@ -79,7 +79,8 @@ function gamma_scan(; Geo = nothing)
             state = Tuple([0 for _ in 1:Geo.L * 2])
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
+            #top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
+            top = "SCANEXP/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,
