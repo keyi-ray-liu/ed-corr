@@ -165,8 +165,8 @@ function markov_test()
     maxiter = 100
     tol = 1e-10
 
-    #Geo = TwoD(2, 2)
-    Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02, )
+    Geo = TwoD(2, 2)
+    #Geo = SD(2, 2; scoup = -0.02, dcoup = -0.02, )
     systag = get_systag(Geo)
     #Par = Fermion() 
 
@@ -174,13 +174,14 @@ function markov_test()
 
     Coul = ZeroCoul
 
-    G1 = G2 = 0
+    G1 = 2
+    G2 = -2
     devicebias = 0
-    γ = 0.05
-    bias = Bias([0 for _ in 1:Geo.L])
+    γ = 0.02
+    bias = Bias([0, G1, G2, 0])
 
     state = Tuple([0 for _ in 1:Geo.L * 2])
-    injdep = InjDep(1, Geo.L, γ, 0.0 , 0.0, γ)
+    injdep = InjDep(1, Geo.L, γ, γ, γ, γ)
     solver = "exp"
     tfin = 1000
     dt = 10
