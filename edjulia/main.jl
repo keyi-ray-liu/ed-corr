@@ -71,9 +71,16 @@ if ARGS == []
 #task()
     #time_evolve_test()
     
+<<<<<<< HEAD
     markov_test()
     #gamma_scan(; Geo = FRUSTRATION_4())
     #gamma_scan(; Geo = FIVE())
+=======
+    #markov_test()
+    gamma_scan(; Geo = FRUSTRATION_4())
+    gamma_scan(; Geo = FIVE())
+    gamma_scan()
+>>>>>>> 1b3061a97f71bdebf425d9396eeb2b6c4e6f2b3e
 #GS()
 #scan()
     #GG()
