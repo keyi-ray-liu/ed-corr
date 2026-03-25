@@ -43,7 +43,7 @@ function gamma_scan(; Geo = nothing)
 
     
     γs = 10.0 .^ (-2:0.1:3.0) #[0.1, 1.0, 10.0, 100.0]
-    Us = [1.0, 10.0, 100.0]
+    Us = [0.0] #[1.0, 10.0, 100.0]
     tfin = 750
     dt = 250
 
@@ -75,7 +75,7 @@ function gamma_scan(; Geo = nothing)
             one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false
 =======
             #top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-            top = "SCANEXP/"
+            top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/marchbench/2x2/SCANEXP/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,
