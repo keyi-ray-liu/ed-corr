@@ -70,12 +70,10 @@ function gamma_scan(; Geo = nothing)
             state = Tuple([0 for _ in 1:Geo.L * 2])
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
-<<<<<<< HEAD
             top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-            one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false
-=======
+
             #top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-            top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/marchbench/2x2/SCANEXP/"
+            #top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/marchbench/2x2/SCANEXP/"
             filestr = gen_file(top; 
                 U = Par.U,
                 Coul = Coul.ee,
@@ -91,8 +89,9 @@ function gamma_scan(; Geo = nothing)
                 state = join(state, ""),
                 solver = solver,
                 dt = dt
->>>>>>> 1b3061a97f71bdebf425d9396eeb2b6c4e6f2b3e
             )
+
+            one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false)
         end 
     end 
 
