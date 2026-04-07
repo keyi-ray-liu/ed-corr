@@ -72,25 +72,6 @@ function gamma_scan(; Geo = nothing)
 
             top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
 
-            #top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-            #top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/marchbench/2x2/SCANEXP/"
-            filestr = gen_file(top; 
-                U = Par.U,
-                Coul = Coul.ee,
-                sys = systag,
-                tfin = tfin,
-                injs = injdep.γ_inj_source,
-                deps = injdep.γ_dep_source,
-                injd = injdep.γ_inj_drain,
-                depd = injdep.γ_dep_drain,
-                GOne = G1,
-                GTwo = G2,
-                devicebias = devicebias,
-                state = join(state, ""),
-                solver = solver,
-                dt = dt
-            )
-
             one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false)
         end 
     end 
