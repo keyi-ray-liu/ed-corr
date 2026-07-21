@@ -2,24 +2,24 @@
 using Pkg
 
 for strs in [
-    # "Combinatorics",
-    # "ArnoldiMethod",
-    # "DifferentialEquations",
-    # "SparseArrays",
-    # "TerminalLoggers",
-    # "LSODA",
-    # "ForwardDiff",
-    # "BenchmarkTools",
-    # "BlockBandedMatrices"
-    # "Plots",
-    # "SparseConnectivityTracer",
-    # "ADTypes",
-    # "HDF5"
-    # "FileIO"
-    # "OrdinaryDiffEqLinear",
-    # #"LinearMaps",
-    # #"ExponentialUtilities",
-    # "KrylovKit"
+    "Combinatorics",
+    "ArnoldiMethod",
+    "DifferentialEquations",
+    "SparseArrays",
+    "TerminalLoggers",
+    "LSODA",
+    "ForwardDiff",
+    "BenchmarkTools",
+    "BlockBandedMatrices",
+    "Plots",
+    "SparseConnectivityTracer",
+    "ADTypes",
+    "HDF5",
+    "FileIO",
+    "OrdinaryDiffEqLinear",
+    #"LinearMaps",
+    #"ExponentialUtilities",
+    "KrylovKit"
     ]
 
     Pkg.add(strs)
