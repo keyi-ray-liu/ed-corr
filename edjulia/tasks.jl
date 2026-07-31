@@ -67,7 +67,7 @@ function _GS(qn::QN, Par :: Particle,  Geo::Geometry, Coul::Coulomb, bias :: Bia
 
     #@show expectation(qn, Par, Geo, U, Occupation())
 
-    return w
+    return w, U
 
 end 
 

@@ -1,29 +1,29 @@
 
 using Pkg
 
-for strs in [
-    "Combinatorics",
-    "ArnoldiMethod",
-    "DifferentialEquations",
-    "SparseArrays",
-    "TerminalLoggers",
-    "LSODA",
-    "ForwardDiff",
-    "BenchmarkTools",
-    "BlockBandedMatrices",
-    "Plots",
-    "SparseConnectivityTracer",
-    "ADTypes",
-    "HDF5",
-    "FileIO",
-    "OrdinaryDiffEqLinear",
-    #"LinearMaps",
-    #"ExponentialUtilities",
-    "KrylovKit"
-    ]
+# for strs in [
+#     "Combinatorics",
+#     "ArnoldiMethod",
+#     "DifferentialEquations",
+#     "SparseArrays",
+#     "TerminalLoggers",
+#     "LSODA",
+#     "ForwardDiff",
+#     "BenchmarkTools",
+#     "BlockBandedMatrices",
+#     "Plots",
+#     "SparseConnectivityTracer",
+#     "ADTypes",
+#     "HDF5",
+#     "FileIO",
+#     "OrdinaryDiffEqLinear",
+#     #"LinearMaps",
+#     #"ExponentialUtilities",
+#     "KrylovKit"
+#     ]
 
-    Pkg.add(strs)
-end 
+#     Pkg.add(strs)
+# end 
 
 
 #using LinearMaps
@@ -63,6 +63,7 @@ include("densitymatrix.jl")
 include("utils.jl")
 include("plotter.jl")
 include("scan.jl")
+include("dpt.jl")
 include("test.jl")
 
 ForwardDiff.can_dual(::Type{ComplexF64}) = true
@@ -74,7 +75,8 @@ if ARGS == []
     #markov_test()
     #gamma_scan(; Geo = FRUSTRATION_4())
     #gamma_scan(; Geo = FIVE())
-    gamma_scan()
+    #gamma_scan()
+    dpt_test()
 #GS()
 #scan()
     #GG()

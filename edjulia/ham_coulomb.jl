@@ -12,6 +12,24 @@ end
 
 
 
+function coulomb!(basis_dict :: Dict, M :: SparseMatrixCSC, ::Fermion, Coul :: Coulomb, Geo :: DPT)
+
+
+    U = Coul.ee
+    NW = Geo.NW
+    S = Geo.S
+    for (basis :: Tuple, ind :: Int) in basis_dict
+
+        val = sum( basis[NW + 1: NW + S])
+        DD = basis[end - 1]
+        M[ind, ind] += U * (val - S/2) * (DD - 1/2)
+    end 
+
+    return M
+
+end 
+
+
 
 
 function ee(basis, ::Fermion, Coul::Coulomb, Geo :: Geometry)

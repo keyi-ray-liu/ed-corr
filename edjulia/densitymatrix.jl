@@ -14,11 +14,10 @@ cdn(args...) = cdagdn(args...)'
 corr_up( basis_dict,  geo, site1, site2) = cdagup(basis_dict, geo, site1) * cup(basis_dict, geo, site2)
 corr_dn( basis_dict,  geo, site1, site2) = cdagdn(basis_dict, geo, site1) * cdn(basis_dict, geo, site2)
 
-#corr( basis_dict, ::Fermion, geo, site1, site2) = _corr( basis_dict, Fermion(), site1, site2, 0)
 
-
+corr( basis_dict, geo, site1, site2) = cdag(basis_dict, geo, site1) * c(basis_dict, geo, site2)
 # Fermionic cdag
-function _cdag(basis_dict :: Dict,  site::Int,  L :: Int )
+function _cdag(basis_dict :: Dict,  site::Int,  :: Int )
 
     dim = length(keys(basis_dict))
     M = spzeros(dim, dim)
@@ -81,64 +80,6 @@ function _cdag(basis_dict :: Dict,  site::Int, spin_shift::Int, L :: Int )
 
 end 
 
-#corr_up( basis_dict, Par, geo, site1, site2) =  _corr( basis_dict, Par, site1, site2, 0, 0, Up())
-#corr_dn( basis_dict, Par, geo, site1, site2) =  _corr( basis_dict, Par, site1, site2, 0, geo.L, Dn())
-
-# function _corr(basis_dict :: Dict,  ::Fermion, from::Int, to::Int, local_shift::Int)
-
-#     @info "This is Fermion corr, calculating: from $(from), to $(to)"
-#     dim = length(keys(basis_dict))
-#     M = spzeros(dim, dim)
-#     # this represents cdag at site $site
-#     for (basis :: Tuple, ind1 :: Int) in basis_dict
-#         from += local_shift
-#         to += local_shift
-
-#         if basis[from ] < basis[to ]
-#             newbasis =  collect(basis)
-#             newbasis[to ], newbasis[from ] = basis[from], basis[to ]
-
-#             ind2 = basis_dict[Tuple(newbasis)]
-#             hop =  jw(Fermion(), basis, from, to)
-#             M[ind1, ind2] += hop
-
-#         end
-
-#     end 
-
-#     return M
-
-
-# end 
-
-
-
-# function _corr(basis_dict :: Dict,  ::Electron, from::Int, to::Int, local_shift::Int, spin_shift::Int, Sp::Spin)
-
-#     @info "This is corr $(Sp), calculating: from $(from), to $(to), spin shift = $(spin_shift)"
-#     dim = length(keys(basis_dict))
-#     M = spzeros(dim, dim)
-#     # this represents cdag at site $site
-#     for (basis :: Tuple, ind1 :: Int) in basis_dict
-#         from += local_shift
-#         to += local_shift
-
-#         if basis[from + spin_shift] < basis[to + spin_shift] 
-#             newbasis =  collect(basis)
-#             newbasis[to + spin_shift], newbasis[from + spin_shift] = basis[from + spin_shift], basis[to + spin_shift]
-
-#             ind2 = basis_dict[Tuple(newbasis)]
-#             hop =  jw(Sp, basis, from, to, L)
-#             M[ind1, ind2] += hop
-
-#         end
-
-#     end 
-
-#     return M
-
-
-# end 
 
 
 function lindbladian!(du, u, p, t)
@@ -193,8 +134,30 @@ function gen_ρ(qn, Par, Geo; state = (0, 0, 0, 0, 0, 0, 0, 0))
 
     ind = findfirst( x -> x == state, collect(Iterators.flatten((basis,))))
 
-    @show ind
     ρ[ind, ind] = 1
+
+    return ρ
+end 
+
+
+function gen_ρ(smallbasis, largebasis, U)
+
+    dim = length(largebasis)
+    
+    ρ = zeros(ComplexF64, dim) 
+    ref = collect(Iterators.flatten((largebasis,)))
+
+    for (i, val) in enumerate(U)
+
+        state = smallbasis[i]
+        ind = findfirst( x -> x == state, ref)
+
+        #@show ind
+        ρ[ind] = val
+
+    end
+    
+    ρ = ρ * ρ'
 
     return ρ
 end 

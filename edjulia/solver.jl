@@ -14,7 +14,7 @@ struct SteadyState end
 # =======================================================================================================================================
 # =======================================================================================================================================
 
-function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_diag(), nev=min(2, length(h)))
+function _solve(h,  :: Geometry,  :: Particle; method ::DiagMethod = full_diag(), nev=min(2, length(h)))
 
     @show nev
     @assert h == transpose(h)
@@ -29,18 +29,6 @@ function _solve(h, Geo :: Geometry, Par :: Particle; method ::DiagMethod = full_
 
     # @show info
     # @show size(w), size(U)
-
-
-    filestr = "ref/$(get_name(Geo))$(get_name(Par))/"
-
-    try
-        mkpath( filestr )
-    catch
-    end
-
-    open( "$(filestr)energy" , "w") do io
-        writedlm(io, w)
-    end
 
     return w, U
 
@@ -213,7 +201,29 @@ function _solver(::SteadyState, ρ0, tspan, p)
 end 
 
 
-function _gen_ops(h, basis_dict, Geo :: Geometry, op :: InjDep)
+function _gen_ops(h, basis_dict, ::Fermion, Geo :: Geometry, op :: InjDep)
+
+    inj_source = cdag(basis_dict, Geo, op.source_site)
+    dep_source = c(basis_dict,  Geo, op.source_site)
+
+    inj_drain = cdag(basis_dict, Geo, op.drain_site)
+    dep_drain = c(basis_dict,  Geo, op.drain_site)
+
+    ops = [
+        inj_source, dep_source, inj_drain, dep_drain
+    ]
+
+    γs = [ 
+        op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain
+    ]
+
+    p = [h, ops, γs]
+
+    return p
+
+end 
+
+function _gen_ops(h, basis_dict, ::Electron, Geo :: Geometry, op :: InjDep)
 
     inj_source_up = cdagup(basis_dict, Geo, op.source_site)
     dep_source_up = cup(basis_dict,  Geo, op.source_site)
@@ -255,7 +265,7 @@ function _odesolve(h, basis_dict, Geo :: Geometry, ρ0, op :: InjDep; start = 0,
 
     #   ---------- up -------------
 
-    p = _gen_ops(h, basis_dict, Geo, op)
+    p = _gen_ops(h, basis_dict, Electron(), Geo, op)
     tspan = (start, fin)
     
     if backendstr == "generic"
@@ -314,6 +324,123 @@ end
 
 
 
+
+
+"""all default Krylov parameters are consistent with KrylovKit """
+function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false)
+
+
+    h = gen_ham(qn, Par, Geo, Coul, bias )
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    p = _gen_ops(h, basis_dict, Par, Geo, op)
+    N = size(basis, 1)
+
+    try
+        mkpath( filestr )
+    catch
+    end
+
+    L = Geo.L
+    Ts = (start + dt):dt:fin
+    T = length(Ts) + 1
+
+    ops = Dict((from, to) => corr(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
+    CC = zeros(ComplexF64, T, L, L)
+    function L_action(u)
+
+        u = reshape(u, N, N)
+
+        h = p[1]
+        Ops = p[2]
+        γs = p[3]
+
+        du = -1im *  commutator(h, u) 
+
+        for (i, op) in enumerate(Ops)
+            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
+        end 
+
+        #du .= BlockBandedMatrix(du)
+        du = vec(du)
+
+        return du
+    end
+
+    #L_map = LinearMap(L_action!, N^2, ismutating=true, ishermitian = false, issymmetric = false)
+    ρ = ρ0
+    # expectation at 0
+    for i in 1:L
+        for j in i:L
+
+            val = _expectation(ρ, ops[(i, j)])
+            CC[1, i, j] = val
+            CC[1, j, i] = conj(val)
+        end 
+    end 
+
+
+    if writeateverystep
+        open( "$(filestr)timetemp", "w") do io
+            writedlm(io, 0 )
+        end
+    end 
+
+
+    for (tt, t) in enumerate(Ts)
+
+        @show tt, t
+
+        #ρ_vec = expv(t, L_map, vec(ρ0))
+        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol)
+        @show info
+
+        if info.converged == 0
+            @warn "Krylov iteration failed at step $step. Aborting simulation."
+            return nothing 
+        end
+
+        ρ = reshape(ρ_vec, N, N)
+        
+        @show size(ρ)
+        
+        # expectation
+        for i in 1:L
+            for j in i:L
+                val = _expectation(ρ, ops[(i, j)])
+
+                CC[tt + 1, i, j] = val
+                CC[tt + 1, j, i] = conj(val)
+
+            end 
+        end 
+
+        if writeateverystep
+            open( "$(filestr)timetemp", "a") do io
+                writedlm(io, round(t, sigdigits=5) )
+            end
+
+            write_corr(filestr, CC[ 1:tt + 1, :, :]; tag = "temp")
+
+        end 
+  
+    end 
+
+    times = round.(collect(start:dt:fin), sigdigits=5)
+    open( "$(filestr)times", "w") do io
+        writedlm(io, times)
+    end
+
+    write_corr(filestr, CC)
+
+    @info "memory usage: $(Sys.maxrss()/2^30) GB"
+
+    return times, CC
+
+end 
+
+
 """all default Krylov parameters are consistent with KrylovKit """
 function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false)
 
@@ -322,7 +449,7 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
     basis = gen_basis(qn, Par, Geo)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 
-    p = _gen_ops(h, basis_dict, Geo, op)
+    p = _gen_ops(h, basis_dict, Par, Geo, op)
     N = size(basis, 1)
 
     try

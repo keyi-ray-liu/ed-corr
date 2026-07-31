@@ -126,6 +126,25 @@ struct FIVE <: Geometry
     end 
 end 
 
+"""L is the size of the reservoir, S defaults to 4, U, μ are provided through Coul and bias interface"""
+struct DPT <: Geometry
+    L :: Int
+    S :: Int
+    NW :: Int
+    hopdict :: Dict
+    function DPT(; S = 4, NW = 1, vs = 3/4)
+        hopdict = Dict{Int, Array}()
+        L = S + NW * 2 + 2
+        for i in 1:( S + NW * 2 - 1)
+            hopdict[i] = [ (1.0, i + 1) ]
+        end 
+        hopdict[L-1] = [ (vs, L) ]
+        @show "DPT hop: $(hopdict)"
+        new(L, S, NW, hopdict)
+    end 
+end 
+
+
 
 """1, is contact, 4 is drain, but 1 has connection to 4"""
 struct FRUSTRATION_4 <: Geometry
