@@ -10,12 +10,12 @@ for strs in [
     # "LSODA",
     # "ForwardDiff",
     # "BenchmarkTools",
-    # "BlockBandedMatrices"
+    # "BlockBandedMatrices",
     # "Plots",
     # "SparseConnectivityTracer",
     # "ADTypes",
-    # "HDF5"
-    # "FileIO"
+    # "HDF5",
+    # "FileIO",
     # "OrdinaryDiffEqLinear",
     # #"LinearMaps",
     # #"ExponentialUtilities",
@@ -63,6 +63,7 @@ include("densitymatrix.jl")
 include("utils.jl")
 include("plotter.jl")
 include("scan.jl")
+include("dpt.jl")
 include("test.jl")
 
 ForwardDiff.can_dual(::Type{ComplexF64}) = true
@@ -74,7 +75,9 @@ if ARGS == []
     #markov_test()
     #gamma_scan(; Geo = FRUSTRATION_4())
     #gamma_scan(; Geo = FIVE())
-    gamma_scan()
+    #gamma_scan()
+    dpt_test()
+    #dpt_single(; ifplot = true)
 #GS()
 #scan()
     #GG()

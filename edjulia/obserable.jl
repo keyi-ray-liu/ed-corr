@@ -16,10 +16,31 @@ function expectation(qn::QN, Par::Particle, Geo::Geometry, U, ::Occupation; file
     basis = gen_basis(qn, Par, Geo)
 
     basis_mat = hcat([collect(arr) for arr in basis]...)
-    basis_mat .-= 1
-    occup, occdn = _expectation(basis_mat, Par, Geo, U, Occupation(); filestr=filestr, save=save)
+    occ = _expectation(basis_mat, Par, Geo, U, Occupation(); filestr=filestr, save=save)
 
-    return occup, occdn
+    return occ
+end 
+
+function _expectation(basis_mat :: Matrix, ::Fermion,  Geo :: Geometry , V, ::Occupation; filestr="", save=false)
+
+    V = abs2.(V)
+    occ = basis_mat * V
+
+    try
+        mkpath( filestr )
+    catch
+    end
+
+    occ = occ'
+
+    if save
+        open( "$(filestr)occ", "w") do io
+            writedlm(io, round.(occ, sigdigits=5))
+        end
+    end
+
+    return occ
+
 end 
 
 function _expectation(basis_mat :: Matrix, ::Electron,  Geo :: Geometry , V, ::Occupation; filestr="", save=true)
@@ -248,6 +269,8 @@ function expectation(qn ::QN, sol::ODESolution, Par::Particle, Geo:: Geometry, :
 end 
 
 
+
+
 function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Occupation)
 
     basis = gen_basis(qn, Par, Geo)
@@ -436,3 +459,6 @@ function _expectation(ρ, op :: SparseMatrixCSC)
     return O
 
 end 
+
+
+

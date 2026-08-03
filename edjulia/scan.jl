@@ -76,6 +76,10 @@ function gamma_scan(; Geo = nothing)
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
             top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3837ff2e5d82c7941958e246f21426d2975d7c03
             one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false)
         end 
     end 

@@ -9,7 +9,7 @@ vectomat( vec ) = mapreduce( permutedims, vcat, vec)
 
 function gen_file(top ; kwargs...)
 
-    file = top * join([ string(key) * string(val) for (key, val) in kwargs], "_") * "/"
+    file = top *"/" * join([ string(key) * string(val) for (key, val) in kwargs], "_") * "/"
 
     return file
 
@@ -34,6 +34,9 @@ function get_systag( sys)
     elseif typeof(sys) == FIVE
         tag = "FIVE"
 
+    elseif typeof(sys) == DPT
+        tag = "DPT"
+        
     else
         error("$(sys): unknown type")
     end 
@@ -63,6 +66,24 @@ function load_corr(filestr)
     
 
 end 
+
+
+function write_corr(filestr, CC; tag = "")
+
+    T, Nx, Ny = size(CC)
+
+
+    h5open("$(filestr)CC$(tag).h5", "w") do f
+
+        dR = create_dataset(f, "RE", Float64, dataspace(T, Nx, Ny))
+        dI = create_dataset(f, "IM", Float64, dataspace(T, Nx, Ny))
+        write(dR, real.(CC))
+        write(dI, imag.(CC))
+
+    end 
+
+end 
+
 
 function write_corr(filestr, CCups, CCdns; tag = "")
 
