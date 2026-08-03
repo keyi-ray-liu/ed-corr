@@ -9,7 +9,7 @@ vectomat( vec ) = mapreduce( permutedims, vcat, vec)
 
 function gen_file(top ; kwargs...)
 
-    file = top * join([ string(key) * string(val) for (key, val) in kwargs], "_") * "/"
+    file = top *"/" * join([ string(key) * string(val) for (key, val) in kwargs], "_") * "/"
 
     return file
 

@@ -269,6 +269,8 @@ function expectation(qn ::QN, sol::ODESolution, Par::Particle, Geo:: Geometry, :
 end 
 
 
+
+
 function _expectation(qn ::QN, sol::ODESolution, Par::Fermion, Geo:: Geometry, ::Occupation)
 
     basis = gen_basis(qn, Par, Geo)
@@ -457,3 +459,6 @@ function _expectation(ρ, op :: SparseMatrixCSC)
     return O
 
 end 
+
+
+

@@ -326,28 +326,11 @@ end
 
 
 
-"""all default Krylov parameters are consistent with KrylovKit """
-function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false)
+"""all default Krylov parameters are consistent with KrylovKit \\
+defaults calculates all CC
+"""
+function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false, writemode = "w", tag = "", CCinds = nothing)
 
-
-    h = gen_ham(qn, Par, Geo, Coul, bias )
-    basis = gen_basis(qn, Par, Geo)
-    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
-
-    p = _gen_ops(h, basis_dict, Par, Geo, op)
-    N = size(basis, 1)
-
-    try
-        mkpath( filestr )
-    catch
-    end
-
-    L = Geo.L
-    Ts = (start + dt):dt:fin
-    T = length(Ts) + 1
-
-    ops = Dict((from, to) => corr(basis_dict, Geo, from, to) for from in 1:L for to in from:L)
-    CC = zeros(ComplexF64, T, L, L)
     function L_action(u)
 
         u = reshape(u, N, N)
@@ -368,12 +351,36 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
         return du
     end
 
+    h = gen_ham(qn, Par, Geo, Coul, bias )
+    basis = gen_basis(qn, Par, Geo)
+    basis_dict = Dict( b => i for (i, b) in enumerate(basis))
+
+    startshift = start == 0 ? 1 : 0
+    p = _gen_ops(h, basis_dict, Par, Geo, op)
+    N = size(basis, 1)
+
+    try
+        mkpath( filestr )
+    catch
+    end
+
+    L = Geo.L
+    Ts = (start + dt):dt:fin
+    T = length(Ts) + startshift
+
+    if isnothing(CCinds)
+        CCinds = [ (from, to) for from in 1:L for to in from:L]
+    end 
+
+    ops = Dict((from, to) => corr(basis_dict, Geo, from, to) for (from, to) in CCinds)
+    CC = zeros(ComplexF64, T, L, L)
+
+
     #L_map = LinearMap(L_action!, N^2, ismutating=true, ishermitian = false, issymmetric = false)
     ρ = ρ0
-    # expectation at 0
-    for i in 1:L
-        for j in i:L
-
+    
+    if startshift == 1
+        for (i, j) in CCinds
             val = _expectation(ρ, ops[(i, j)])
             CC[1, i, j] = val
             CC[1, j, i] = conj(val)
@@ -382,7 +389,7 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
 
 
     if writeateverystep
-        open( "$(filestr)timetemp", "w") do io
+        open( "$(filestr)timetemp", writemode) do io
             writedlm(io, 0 )
         end
     end 
@@ -397,7 +404,7 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
         @show info
 
         if info.converged == 0
-            @warn "Krylov iteration failed at step $step. Aborting simulation."
+            @warn "Krylov iteration failed at step $(tt). Aborting simulation."
             return nothing 
         end
 
@@ -406,14 +413,11 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
         @show size(ρ)
         
         # expectation
-        for i in 1:L
-            for j in i:L
-                val = _expectation(ρ, ops[(i, j)])
+        for (i, j) in CCinds
+            val = _expectation(ρ, ops[(i, j)])
 
-                CC[tt + 1, i, j] = val
-                CC[tt + 1, j, i] = conj(val)
-
-            end 
+            CC[tt + startshift, i, j] = val
+            CC[tt + startshift, j, i] = conj(val)
         end 
 
         if writeateverystep
@@ -427,16 +431,16 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
   
     end 
 
-    times = round.(collect(start:dt:fin), sigdigits=5)
-    open( "$(filestr)times", "w") do io
+    times = round.(collect(start + (1 - startshift) * dt:dt:fin), sigdigits=5)
+    open( "$(filestr)times", writemode) do io
         writedlm(io, times)
     end
 
-    write_corr(filestr, CC)
+    write_corr(filestr, CC; tag = tag)
 
     @info "memory usage: $(Sys.maxrss()/2^30) GB"
 
-    return times, CC
+    return times, CC, ρ
 
 end 
 

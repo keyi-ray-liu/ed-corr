@@ -1,29 +1,29 @@
 
 using Pkg
 
-# for strs in [
-#     "Combinatorics",
-#     "ArnoldiMethod",
-#     "DifferentialEquations",
-#     "SparseArrays",
-#     "TerminalLoggers",
-#     "LSODA",
-#     "ForwardDiff",
-#     "BenchmarkTools",
-#     "BlockBandedMatrices",
-#     "Plots",
-#     "SparseConnectivityTracer",
-#     "ADTypes",
-#     "HDF5",
-#     "FileIO",
-#     "OrdinaryDiffEqLinear",
-#     #"LinearMaps",
-#     #"ExponentialUtilities",
-#     "KrylovKit"
-#     ]
+for strs in [
+    # "Combinatorics",
+    # "ArnoldiMethod",
+    # "DifferentialEquations",
+    # "SparseArrays",
+    # "TerminalLoggers",
+    # "LSODA",
+    # "ForwardDiff",
+    # "BenchmarkTools",
+    # "BlockBandedMatrices",
+    # "Plots",
+    # "SparseConnectivityTracer",
+    # "ADTypes",
+    # "HDF5",
+    # "FileIO",
+    # "OrdinaryDiffEqLinear",
+    # #"LinearMaps",
+    # #"ExponentialUtilities",
+    # "KrylovKit"
+    ]
 
-#     Pkg.add(strs)
-# end 
+    Pkg.add(strs)
+end 
 
 
 #using LinearMaps
@@ -77,6 +77,7 @@ if ARGS == []
     #gamma_scan(; Geo = FIVE())
     #gamma_scan()
     dpt_test()
+    #dpt_single(; ifplot = true)
 #GS()
 #scan()
     #GG()
