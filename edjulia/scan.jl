@@ -4,9 +4,9 @@ function GG_scan(; Geo = nothing)
 
     
     γ = 0.02
-    U = 4.0
-    tfin = 500
-    dt = 500
+    U = 1.0
+    tfin = 750
+    dt = 250
 
     krylovdim = 90
     maxiter = 500
@@ -24,14 +24,19 @@ function GG_scan(; Geo = nothing)
     γ = trunc(γ; sigdigits = 5)
 
     Coul = RefCoul
-    bias = Bias([0 for _ in 1:Geo.L])
 
-    state = Tuple([0 for _ in 1:Geo.L * 2])
-    injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
+    Threads.@threads for G1 in -100:10:100
+        for G2 in -100:10:100
+            bias = Bias([0, G1, G2, 0])
 
-    top = "/home/keyi-liu/Desktop/Code/Markovian/Mar23GGScan/"
-    one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false
-    )
+            state = Tuple([0 for _ in 1:Geo.L * 2])
+            injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
+
+            top = "/home/keyi-liu/Desktop/Code/Markovian/Mar23GGScan/"
+            one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false, G1 = G1, G2 = G2
+            )
+        end 
+    end 
 
     return nothing
 end 
@@ -51,6 +56,7 @@ function gamma_scan(; Geo = nothing)
     maxiter = 500
     tol = 1e-11
 
+
     for U in Us
 
         U = trunc(U; sigdigits = 5)
@@ -65,32 +71,11 @@ function gamma_scan(; Geo = nothing)
             γ = trunc(γ; sigdigits = 5)
 
             Coul = ZeroCoul
-            bias = Bias([0 for _ in 1:Geo.L])
 
             state = Tuple([0 for _ in 1:Geo.L * 2])
             injdep = InjDep(1, 4, γ, 0.0 , 0.0, γ)
 
             top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-
-            #top = "/home/keyi-liu/Desktop/Code/Markovian/Mar13EXP/"
-            #top = "/Users/knl20/Desktop/PROJECT_SD/Markovian_ED/marchbench/2x2/SCANEXP/"
-            filestr = gen_file(top; 
-                U = Par.U,
-                Coul = Coul.ee,
-                sys = systag,
-                tfin = tfin,
-                injs = injdep.γ_inj_source,
-                deps = injdep.γ_dep_source,
-                injd = injdep.γ_inj_drain,
-                depd = injdep.γ_dep_drain,
-                GOne = G1,
-                GTwo = G2,
-                devicebias = devicebias,
-                state = join(state, ""),
-                solver = solver,
-                dt = dt
-            )
-
             one_run(; γ = γ, U = U, tfin = tfin, dt = dt,  krylovdim = krylovdim, maxiter = maxiter, tol = tol, Geo = Geo, solver = "exp", Coul = Coul, bias = bias, state = state, injdep = injdep, top = top, plot = false)
         end 
     end 
@@ -101,7 +86,7 @@ end
 
 
 
-function one_run(; γ = nothing, U = nothing, tfin = nothing, dt = nothing,  krylovdim = 90, maxiter = 500, tol = 1e-11, Geo = nothing, solver = "exp", Coul = nothing, bias = nothing, state = nothing, injdep = nothing, top = nothing, plot = false)
+function one_run(; γ = nothing, U = nothing, tfin = nothing, dt = nothing,  krylovdim = 90, maxiter = 500, tol = 1e-11, Geo = nothing, solver = "exp", Coul = nothing, G1 = nothing, G2 = nothing, bias = nothing, state = nothing, injdep = nothing, top = nothing, plot = false)
 
 
     U = trunc(U; sigdigits = 5)
@@ -127,11 +112,11 @@ function one_run(; γ = nothing, U = nothing, tfin = nothing, dt = nothing,  kry
         depd = injdep.γ_dep_drain,
         GOne = G1,
         GTwo = G2,
-        devicebias = devicebias,
         state = join(state, ""),
         solver = solver,
         dt = dt
     )
+    
 
     if !ispath(filestr * "time")
         ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
