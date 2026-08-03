@@ -90,7 +90,7 @@ else
 
     if ARGS[1] == "GG"
         
-        GG()
+        GG_scan()
         #GG(float(ARGS[2]), float(ARGS[3]))
 
     elseif ARGS[1] == "Gamma"
