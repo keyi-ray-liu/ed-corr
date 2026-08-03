@@ -1,0 +1,14 @@
+#! /bin/zsh
+
+TH=10
+export OPENBLAS_NUM_THREADS=1
+#export MKL_NUM_THREADS=$TH
+export OMP_NUM_THREADS=1
+#export BLIS_NUM_THREADS=$TH
+#export VECLIB_MAXIMUM_THREADS=$TH
+#export NUMEXPR_NUM_THREADS=$TH
+#export MKL_DYNAMIC=FALSE
+export JULIA_NUM_THREADS=$TH
+#export OMP_DYNAMIC=FALSE
+
+julia -t $TH main.jl GG
