@@ -1,9 +1,9 @@
-function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, tswitch = tfin/2, γ = 0.5, dt = 1/8, ifplot = false, top = "$(homedir())/Desktop/PROJECT_DPT/EDMarkovian/bench/" )
+function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, tswitch = tfin/2, γ = 0.5, dt = 1/8, top = "$(homedir())/Desktop/PROJECT_DPT/EDMarkovian/bench/" )
 
     krylovdim = 20
     maxiter = 100
     tol = 1e-10
-    check_exist = false
+    check_exist = true
 
     mid = NW + div(S, 2)
 
@@ -24,11 +24,11 @@ function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, ts
     bias = vcat( μL, μR, DD)
     bias = Bias(bias)
 
-    @show initbias
-    @show bias 
+    @info "initbias: $initbias"
+    @info "bias: $bias"
 
     #state = Tuple([0 for _ in 1:dpt.L])
-    injdep = InjDep(1, NW * 2 + S, γ, 0, 0, γ)
+    injdep = InjDep(1, NW * 2 + S, γ, 0.0, 0.0, γ)
     solver = "exp"
     
     filestr = gen_file(top; 
@@ -51,53 +51,78 @@ function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, ts
     )
 
     #@show state
-    @show filestr
+    @info "filestr: $filestr"
 
-    # we solve for the GS
-    cf = Fermion(div(dpt.L, 2))
-    smallbasis = gen_basis(Conserved(), cf, dpt)
-    largebasis = gen_basis(Not_conserved(), Fermion(), dpt)
-    w, U = GS(Conserved(), cf, initdpt, Coul, initbias)
+    if !ispath(filestr * "DONE") || !check_exist
 
-    occ = expectation( Conserved(), cf, initdpt, U, Occupation())
+        # if isfile("$(filestr)times")
+        #     time = readdlm( "$(filestr)times", Float64)
+        #     if time[end] == tfin
+        #         @info "data exists! skip cal"
+        #         writedlm( "$(filestr)DONE", ["DONE"])
+        #         return nothing
+        #     end
+        # end 
 
-    @show occ, sum(occ)
 
-    ρ = gen_ρ(smallbasis, largebasis, U)
+        if isfile( "$(filestr)rho.h5")
+            @info "ρ exists, load it"
+            ρ = h5open("$(filestr)rho.h5", "r") do file
+                read(file["rho"])
+            end
 
-    @show @info "memory usage before set up : $(Sys.maxrss()/2^30) GB"
 
-    if !ispath(filestr * "times") || !check_exist
-        
+
+            rhotime = readdlm( "$(filestr)rhotime", Float64)
+            start = rhotime[end]
+
+            CCtag = start < tswitch ? "S2" : "S3"
+
+            restart = h5open("$(filestr)CC$(CCtag).h5", "r") do file
+                read(file["restart"])
+            end
+
+            restart += 1
+        else
+            @info "ρ does not exist, generate it"
+
+            # we solve for the GS
+            cf = Fermion(div(dpt.L, 2))
+            smallbasis = gen_basis(Conserved(), cf, dpt)
+            largebasis = gen_basis(Not_conserved(), Fermion(), dpt)
+            w, U = GS(Conserved(), cf, initdpt, Coul, initbias)
+
+            occ = expectation( Conserved(), cf, initdpt, U, Occupation())
+
+            @info "occupation numbers: $occ, sum: $(sum(occ))"
+            @info "memory usage before set up : $(Sys.maxrss()/2^30) GB"
+
+            ρ = gen_ρ(smallbasis, largebasis, U)
+            start = 0.0
+            restart = 0
+        end
 
         CCinds = [ (dpt.L - 1, dpt.L - 1), (mid, mid + 1)]
-        @time t1, CC1, ρ = expsolve(Not_conserved(), Fermion(), initdpt, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tswitch, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol, writeateverystep = false, tag = "S2", CCinds = CCinds)
+        CCtags = ["n1", "cur"]
+        CCfuns = [ val -> real.(val), val -> -2. * imag.(val)]
 
-        @time t2, CC2, ρ = expsolve(Not_conserved(), Fermion(), dpt, Coul, bias, ρ , injdep; filestr = filestr, start = tswitch, fin = tfin, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol, writeateverystep = false, writemode = "a", tag = "S3", CCinds = CCinds)
-
-
-        times = vcat(t1, t2)
-        n1 = vcat(real.(CC1[:, end - 1, end - 1]), real.(CC2[:, end - 1, end - 1])) 
-        cur = vcat(-2. * imag.(CC1[:, mid, mid + 1]), -2. * imag.(CC2[:, mid, mid + 1])) 
-
-        open( "$(filestr)cur", "w") do io
-            writedlm(io, cur)
+        if start < tswitch
+            @time ρ = expsolve(Not_conserved(), Fermion(), initdpt, Coul, bias, ρ , injdep; filestr = filestr, start = start, fin = tswitch, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol, writeateverystep = false, tag = "S2", CCinds = CCinds, CCtags = CCtags, CCfuns = CCfuns, restart = restart)
         end
+        
+        @time ρ = expsolve(Not_conserved(), Fermion(), dpt, Coul, bias, ρ , injdep; filestr = filestr, start = max(start, tswitch), fin = tfin, dt = dt, krylovdim = krylovdim, maxiter = maxiter, tol = tol, writeateverystep = false,  tag = "S3", CCinds = CCinds, CCtags = CCtags, CCfuns = CCfuns, restart = restart)
 
-        open( "$(filestr)n1", "w") do io
-            writedlm(io, n1)
+
+        # if ifplot
+        #     plt = plot(times, n1, xlabel = "time", ylabel = "⟨n₁⟩", label = "⟨n₁⟩", lw = 2, color =:blue, legend = :topright)
+        #     right = twinx(plt)
+        #     plot!(right, times, cur,  ylabel = "I", label = "I", lw = 2, color =:red, legend = :bottomright)
+        #     display(plt)
+        # end 
+
+        open( "$(filestr)DONE", "w") do io
+            writedlm(io, ["DONE"])
         end
-
-        open( "$(filestr)times", "w") do io
-            writedlm(io, times)
-        end
-
-        if ifplot
-            plt = plot(times, n1, xlabel = "time", ylabel = "⟨n₁⟩", label = "⟨n₁⟩", lw = 2, color =:blue, legend = :topright)
-            right = twinx(plt)
-            plot!(right, times, cur,  ylabel = "I", label = "I", lw = 2, color =:red, legend = :bottomright)
-            display(plt)
-        end 
 
     else
         @info "data exists! skip cal"
@@ -120,7 +145,10 @@ function dpt_test()
         Threads.@threads for (U, vs, γ) in collect(Base.product( Us, vss, γs))
 
             @show (NW, U, vs, γ)
-            dpt_single(; NW = NW, tfin = 256, U = U, γ = γ, vs = vs, top = joinpath(pwd(), "DPT", "Jul31INIT"))
+
+            top = joinpath(pwd(), "DPT", "Jul31INIT")
+            dpt_single(; NW = NW, tfin = 256, U = U, γ = γ, vs = vs, top = top)
+            
         end 
     end 
 

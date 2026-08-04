@@ -68,40 +68,26 @@ function load_corr(filestr)
 end 
 
 
-function write_corr(filestr, CC; tag = "")
+function write_corr(filestr, CC; tag = "", restart = 0)
 
-    T, Nx, Ny = size(CC)
-
-
+    #T, Nx, Ny = size(CC)
     h5open("$(filestr)CC$(tag).h5", "w") do f
 
-        dR = create_dataset(f, "RE", Float64, dataspace(T, Nx, Ny))
-        dI = create_dataset(f, "IM", Float64, dataspace(T, Nx, Ny))
-        write(dR, real.(CC))
-        write(dI, imag.(CC))
-
+        f["CC$(restart)"] = CC
+        f["restart"] = restart
     end 
 
 end 
 
 
-function write_corr(filestr, CCups, CCdns; tag = "")
+function write_corr(filestr, CCups, CCdns; tag = "", restart = 0)
 
-    T, Nx, Ny = size(CCups)
-
-
+    #T, Nx, Ny = size(CCups)
     h5open("$(filestr)CC$(tag).h5", "w") do f
 
-        dRu = create_dataset(f, "REup", Float64, dataspace(T, Nx, Ny))
-        dRd = create_dataset(f, "REdn", Float64, dataspace(T, Nx, Ny))
-        dIu = create_dataset(f, "IMup", Float64, dataspace(T, Nx, Ny))
-        dId = create_dataset(f, "IMdn", Float64, dataspace(T, Nx, Ny))
-
-        write(dRu, real.(CCups))
-        write(dRd, real.(CCdns))
-        write(dIu, imag.(CCups))
-        write(dId, imag.(CCdns))
-
+        f["CCup$(restart)"] = CCups
+        f["CCdn$(restart)"] = CCdns   
+        f["restart"] = restart
     end 
 
 end 

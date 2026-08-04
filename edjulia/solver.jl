@@ -329,7 +329,7 @@ end
 """all default Krylov parameters are consistent with KrylovKit \\
 defaults calculates all CC
 """
-function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false, writemode = "w", tag = "", CCinds = nothing)
+function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, tag = "", CCinds = nothing, saverhoevery = 10, CCtags = nothing, CCfuns = nothing, writeateverystep = false, restart = 0)   
 
     function L_action(u)
 
@@ -380,17 +380,22 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
     ρ = ρ0
     
     if startshift == 1
-        for (i, j) in CCinds
+        for (ind, (i, j)) in enumerate(CCinds)
             val = _expectation(ρ, ops[(i, j)])
+
             CC[1, i, j] = val
             CC[1, j, i] = conj(val)
+
+            if !isnothing(CCtags) && !isnothing(CCfuns)
+                val = CCfuns[ind](val)
+                open( "$(filestr)$(CCtags[ind])", "w") do io
+                    writedlm(io, val)
+                end
+            end
         end 
-    end 
 
-
-    if writeateverystep
-        open( "$(filestr)timetemp", writemode) do io
-            writedlm(io, 0 )
+        open( "$(filestr)times", "w") do io
+            writedlm(io, 0.0 )
         end
     end 
 
@@ -398,7 +403,6 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
     for (tt, t) in enumerate(Ts)
 
         @show tt, t
-
         #ρ_vec = expv(t, L_map, vec(ρ0))
         @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol)
         @show info
@@ -410,43 +414,52 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
 
         ρ = reshape(ρ_vec, N, N)
         
-        @show size(ρ)
+        if mod(tt, saverhoevery) == 0
+            h5open("$(filestr)rho.h5", "w") do file
+                file["rho"] = ρ
+            end
+
+            open( "$(filestr)rhotime", "w") do io
+                writedlm(io, t)
+            end
+        end
         
         # expectation
-        for (i, j) in CCinds
+        for (ind, (i, j)) in enumerate(CCinds)
             val = _expectation(ρ, ops[(i, j)])
 
             CC[tt + startshift, i, j] = val
             CC[tt + startshift, j, i] = conj(val)
+
+            if !isnothing(CCtags) && !isnothing(CCfuns)
+                val = CCfuns[ind](val)
+                open( "$(filestr)$(CCtags[ind])", "a") do io
+                    writedlm(io, val)
+                end
+            end
         end 
 
         if writeateverystep
-            open( "$(filestr)timetemp", "a") do io
-                writedlm(io, round(t, sigdigits=5) )
-            end
-
-            write_corr(filestr, CC[ 1:tt + 1, :, :]; tag = "temp")
-
+            write_corr(filestr, CC; tag = tag, restart = restart)
         end 
+
+        open( "$(filestr)times", "a") do io
+            writedlm(io, t)
+        end
   
     end 
 
-    times = round.(collect(start + (1 - startshift) * dt:dt:fin), sigdigits=5)
-    open( "$(filestr)times", writemode) do io
-        writedlm(io, times)
-    end
 
-    write_corr(filestr, CC; tag = tag)
-
+    write_corr(filestr, CC; tag = tag, restart = restart)
     @info "memory usage: $(Sys.maxrss()/2^30) GB"
 
-    return times, CC, ρ
+    return ρ
 
 end 
 
 
 """all default Krylov parameters are consistent with KrylovKit """
-function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false)
+function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false, restart = 0)
 
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
