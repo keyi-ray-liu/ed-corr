@@ -96,7 +96,7 @@ sanitizer(::Occupation, ::Geometry, occup, occdn) = occup', occdn'
 
 
 
-function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation; filestr="", save=true)
+function expectation(qn::QN, Par::Electron, Geo::Geometry, U, corr::Correlation; filestr="", save=false)
     basis = gen_basis(qn, Par, Geo)
     basis_dict = Dict( b => i for (i, b) in enumerate(basis))
 

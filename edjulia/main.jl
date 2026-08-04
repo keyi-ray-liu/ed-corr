@@ -99,6 +99,11 @@ else
     elseif ARGS[1] == "Gamma"
 
         gamma_scan()
+
+
+    elseif ARGS[1] == "DPT"
+
+        dpt_test()
     end 
 
 
