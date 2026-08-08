@@ -217,7 +217,9 @@ function _gen_ops(h, basis_dict, ::Fermion, Geo :: Geometry, op :: InjDep)
         op.γ_inj_source, op.γ_dep_source, op.γ_inj_drain, op.γ_dep_drain
     ]
 
-    p = [h, ops, γs]
+    LLd = [ op' * op for op in ops]
+
+    p = [h, ops, γs, LLd]
 
     return p
 
@@ -338,11 +340,17 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
         h = p[1]
         Ops = p[2]
         γs = p[3]
+        LLd = p[4]
 
         du = -1im *  commutator(h, u) 
 
         for (i, op) in enumerate(Ops)
-            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
+
+            if γs[i] == 0
+                continue
+            end
+            
+            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
         end 
 
         #du .= BlockBandedMatrix(du)
@@ -491,11 +499,16 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
         h = p[1]
         ops = p[2]
         γs = p[3]
+        LLd = p[4]
 
         du = -1im *  commutator(h, u) 
 
         for (i, op) in enumerate(ops)
-            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( op' * op, u))
+
+            if γs[i] == 0
+                continue
+            end
+            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
         end 
 
         #du .= BlockBandedMatrix(du)

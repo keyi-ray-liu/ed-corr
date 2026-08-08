@@ -1,6 +1,6 @@
 #! /bin/zsh
 
-TH=20
+TH=10
 export OPENBLAS_NUM_THREADS=1
 #export MKL_NUM_THREADS=$TH
 export OMP_NUM_THREADS=1
