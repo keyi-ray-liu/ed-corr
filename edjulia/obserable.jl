@@ -455,7 +455,22 @@ end
 
 function _expectation(ρ, op :: SparseMatrixCSC)
 
-    O = tr(ρ * op)
+    # O = tr(ρ * op)
+    # return O
+
+
+    rows = rowvals(op)
+    vals = nonzeros(op)
+
+    O = zero(promote_type(eltype(ρ), eltype(op)))
+
+    @inbounds for j in axes(op, 2)
+        for k in nzrange(op, j)
+            i = rows[k]
+            O += vals[k] * ρ[j, i]
+        end
+    end
+
     return O
 
 end 

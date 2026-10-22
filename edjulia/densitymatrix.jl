@@ -125,7 +125,7 @@ function lindbladian(u, p, t)
 end
 
 
-function gen_ρ(qn, Par, Geo; state = (0, 0, 0, 0, 0, 0, 0, 0))
+function gen_ρ(qn, Par, Geo, state)
 
     basis = gen_basis(qn, Par, Geo)
     dim = length(basis) 

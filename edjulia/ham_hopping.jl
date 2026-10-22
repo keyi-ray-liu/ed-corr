@@ -43,7 +43,8 @@ function _hopping(basis_dict :: Dict, M :: SparseMatrixCSC, ::Electron, hopdict:
     for (basis :: Tuple, ind1 :: Int) in basis_dict
         for (from :: Int, tos :: Vector) in hopdict
             for (t, to) in tos
-
+                
+                @assert from < to
                 if up
                     if basis[from] < basis[to]
                         newbasis =  collect(basis)

@@ -256,8 +256,10 @@ function _gen_ops(h, basis_dict, ::Electron, Geo :: Geometry, op :: InjDep)
     # ops = [Matrix(op) for op in ops]
     # h = Matrix(h)
 
+    LLd = [ op' * op for op in ops]
 
-    p = [h, ops, γs]
+
+    p = [h, ops, γs, LLd]
 
     return p
 
@@ -294,7 +296,7 @@ end
 
 
 
-function odesolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "", backendstr = "generic")
+function odesolve(qn::Not_conserved, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; chunks = 1, start = 0, fin = 500, filestr = "", backendstr = "generic")
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)
@@ -328,36 +330,79 @@ end
 
 
 
+
+function make_L_action(h, ops, γs, LLd)
+    N = size(h, 1)
+
+    # Scratch matrix allocated once per solve.
+    # ComplexF64 matches your current density matrices.
+    tmp = Matrix{ComplexF64}(undef, N, N)
+
+    function L_action(v)
+        u = reshape(v, N, N)  # Shares storage with v; no data copy.
+
+        # Each callback returns its own result for KrylovKit.
+        du = similar(tmp)
+
+        # Hamiltonian contribution: -im * (h*u - u*h)
+        mul!(du, h, u, -im, 0)  # du  = -im * h*u
+        mul!(du, u, h,  im, 1)  # du +=  im * u*h
+
+        for i in eachindex(ops)
+            γ = γs[i]
+            iszero(γ) && continue
+
+            op = ops[i]
+            D = LLd[i]  # Already precomputed as op' * op.
+
+            # Jump contribution: γ * op*u*op'
+            mul!(tmp, op, u)             # tmp = op*u
+            mul!(du, tmp, op', γ, 1)     # du += γ * tmp*op'
+
+            # Anticommutator contribution: -γ/2 * (D*u + u*D)
+            mul!(du, D, u, -γ / 2, 1)
+            mul!(du, u, D, -γ / 2, 1)
+        end
+
+        return vec(du)  # Shares storage with du; no data copy.
+    end
+
+    return L_action
+end
+
+
+
 """all default Krylov parameters are consistent with KrylovKit \\
 defaults calculates all CC
+This is intended for non conserved systems
 """
-function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, tag = "", CCinds = nothing, saverhoevery = 10, CCtags = nothing, CCfuns = nothing, writeateverystep = false, restart = 0)   
+function expsolve(qn::Not_conserved, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, tag = "", CCinds = nothing, saverhoevery = 10, CCtags = nothing, CCfuns = nothing, writeateverystep = false, restart = 0, eager = true)   
 
-    function L_action(u)
+    # function L_action(u)
 
-        u = reshape(u, N, N)
+    #     u = reshape(u, N, N)
 
-        h = p[1]
-        Ops = p[2]
-        γs = p[3]
-        LLd = p[4]
+    #     h = p[1]
+    #     Ops = p[2]
+    #     γs = p[3]
+    #     LLd = p[4]
 
-        du = -1im *  commutator(h, u) 
+    #     du = -1im *  commutator(h, u) 
 
-        for (i, op) in enumerate(Ops)
+    #     for (i, op) in enumerate(Ops)
 
-            if γs[i] == 0
-                continue
-            end
+    #         if γs[i] == 0
+    #             continue
+    #         end
             
-            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
-        end 
+    #         du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
+    #     end 
 
-        #du .= BlockBandedMatrix(du)
-        du = vec(du)
+    #     #du .= BlockBandedMatrix(du)
+    #     du = vec(du)
 
-        return du
-    end
+    #     return du
+    # end
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
     basis = gen_basis(qn, Par, Geo)
@@ -366,6 +411,8 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
     startshift = start == 0 ? 1 : 0
     p = _gen_ops(h, basis_dict, Par, Geo, op)
     N = size(basis, 1)
+
+    L_action = make_L_action(p[1], p[2], p[3], p[4])
 
     try
         mkpath( filestr )
@@ -412,11 +459,11 @@ function expsolve(qn::QN, Par :: Fermion, Geo :: Geometry, Coul :: Coulomb, bias
 
         @show tt, t
         #ρ_vec = expv(t, L_map, vec(ρ0))
-        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol)
+        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol, eager = eager)
         @show info
 
         if info.converged == 0
-            @warn "Krylov iteration failed at step $(tt). Aborting simulation."
+            error("Krylov iteration failed at step $(tt). Aborting simulation.")
             return nothing 
         end
 
@@ -467,7 +514,7 @@ end
 
 
 """all default Krylov parameters are consistent with KrylovKit """
-function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false, restart = 0)
+function expsolve(qn::Not_conserved, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bias :: Bias, ρ0, op :: InjDep; start = 0, fin = 50, dt = 1/4, filestr = "", krylovdim = 30, maxiter = 100, tol = 1e-12, writeateverystep = false, restart = 0, eager = true)
 
 
     h = gen_ham(qn, Par, Geo, Coul, bias )
@@ -476,6 +523,8 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
 
     p = _gen_ops(h, basis_dict, Par, Geo, op)
     N = size(basis, 1)
+
+    L_action = make_L_action(p[1], p[2], p[3], p[4])
 
     try
         mkpath( filestr )
@@ -492,32 +541,33 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
     CCups = zeros(ComplexF64, T, L, L)
     CCdns = zeros(ComplexF64, T, L, L)
     
-    function L_action(u)
+    # function L_action(u)
 
-        u = reshape(u, N, N)
+    #     u = reshape(u, N, N)
 
-        h = p[1]
-        ops = p[2]
-        γs = p[3]
-        LLd = p[4]
+    #     h = p[1]
+    #     ops = p[2]
+    #     γs = p[3]
+    #     LLd = p[4]
 
-        du = -1im *  commutator(h, u) 
+    #     du = -1im *  commutator(h, u) 
 
-        for (i, op) in enumerate(ops)
+    #     for (i, op) in enumerate(ops)
 
-            if γs[i] == 0
-                continue
-            end
-            du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
-        end 
+    #         if γs[i] == 0
+    #             continue
+    #         end
+    #         du .+= γs[i] * ( op * u * op' - 1/2 * anticommutator( LLd[i], u))
+    #     end 
 
-        #du .= BlockBandedMatrix(du)
-        du = vec(du)
+    #     #du .= BlockBandedMatrix(du)
+    #     du = vec(du)
 
-        return du
-    end
+    #     return du
+    # end
 
     #L_map = LinearMap(L_action!, N^2, ismutating=true, ishermitian = false, issymmetric = false)
+    
     ρ = ρ0
     # expectation at 0
     for i in 1:L
@@ -543,7 +593,7 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
         @show tt, t
 
         #ρ_vec = expv(t, L_map, vec(ρ0))
-        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol)
+        @time ρ_vec, info = exponentiate(L_action, dt, vec(ρ); krylovdim = krylovdim, maxiter = maxiter, tol = tol, eager = eager)
         @show info
 
         if info.converged == 0
@@ -585,7 +635,7 @@ function expsolve(qn::QN, Par :: Electron, Geo :: Geometry, Coul :: Coulomb, bia
         writedlm(io, round.(collect(start:dt:fin), sigdigits=5) )
     end
 
-    write_corr(filestr, CCups, CCdns)
+    write_corr(filestr, CCups, CCdns, restart = restart)
 
     @info "memory usage: $(Sys.maxrss()/2^30) GB"
 

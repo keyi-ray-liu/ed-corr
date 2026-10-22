@@ -1,4 +1,4 @@
-function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, tswitch = tfin/2, γ = 0.5, dt = 1/8, top = "$(homedir())/Desktop/PROJECT_DPT/EDMarkovian/bench/" )
+function dpt_single(; NW = 1, S = 4, U = 2.0, vs = 3/4, μ = 1/4, tfin = 140, tswitch = tfin/2, γ = 0.5, dt = 1/8, top = "$(homedir())/Desktop/PROJECT_DPT/EDMarkovian/" )
 
     krylovdim = 10
     maxiter = 100
@@ -136,10 +136,10 @@ end
 
 function dpt_test()
 
-    NWs = [3]
-    Us = [2.0, 3.0, 3.5, 4.0, 5.0, 6.0]
-    vss = [1/32, 1/8, 3/4]
-    γs = [1/10, 1/4, 1/3, 1/2, 5/6]
+    NWs = [1, 2]
+    Us = [2.0, 3.5, 5.0, 100.0]
+    vss = [3/4]
+    γs = 10 .^(-3:0.2:2)
 
     for NW in NWs
         Threads.@threads for (U, vs, γ) in collect(Base.product( Us, vss, γs))
@@ -147,8 +147,10 @@ function dpt_test()
 
             @show (NW, U, vs, γ)
 
-            top = joinpath(pwd(), "DPT", "Jul31INIT")
-            dpt_single(; NW = NW, tfin = 256, U = U, γ = γ, vs = vs, top = top)
+            #top = joinpath(pwd(), "DPT", "Jul31INIT")
+            top = "$(homedir())/Desktop/PROJECT_DPT/EDMarkovian/Sept6_NW12/"
+            dpt_single(; NW = NW, tfin = 1024.0, U = U, γ = γ, vs = vs, top = top)
+            dpt_single(; NW = NW, tswitch = 0.0, tfin = 1024.0, U = U, γ = γ, vs = vs, top = top)
             
         end 
     end 

@@ -117,9 +117,12 @@ function one_run(; γ = nothing, U = nothing, tfin = nothing, dt = nothing,  kry
         dt = dt
     )
     
+    if isnothing(bias)
+        bias = Bias([0.0 for _ in Geo.L])
+    end 
 
     if !ispath(filestr * "time")
-        ρ = gen_ρ(Not_conserved(), Par, Geo; state = state)
+        ρ = gen_ρ(Not_conserved(), Par, Geo, state)
 
         if solver == "ODE"
             @time odesolve(Not_conserved(), Par, Geo, Coul, bias, ρ , injdep; filestr = filestr, start = 0, fin = tfin, chunks = 1, backendstr = "generic")

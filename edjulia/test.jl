@@ -19,8 +19,8 @@ function time_evolve_test()
     # U = 4.0
     # gap = 0.0
 
-    Geo_init = SD(2, 2; scoup = 0, dcoup = 0, res = 20)
-    Geo_dyna = SD(2, 2; scoup = -1/8, dcoup = -1/8, res = 20)
+    Geo_init = SD(2, 2; scoup = 0, dcoup = 0, RES = 20)
+    Geo_dyna = SD(2, 2; scoup = -1/8, dcoup = -1/8, RES = 20)
     Par = Electron(Nup, Ndn, U)
     Coul = Coulomb(0.0, -0.0, 0.5, 0.5, 0.0)
 
@@ -38,7 +38,7 @@ end
 function time_evolve(qn::QN, Par :: Particle,  Geo_init::SD, Geo_dyna::SD, Coul::Coulomb, mode::LoadLeft, filestr::String)
 
 
-    res = div(Geo_init.L - Geo_init.X * Geo_init.Y, 2)
+    res = Geo_init.RES
     arr = Geo_init.X * Geo_init.Y
 
     bias_init = Bias(vcat([ mode.init for _ in 1:res], [ -mode.init for _ in 1:res], [ 0 for _ in 1:arr]))

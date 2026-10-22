@@ -112,7 +112,7 @@ end
 struct FIVE <: Geometry
     L :: Int
     hopdict :: Dict
-    function FIVE(; t = -1.0, tc = -1.0)
+    function FIVE(; t = 1.0, tc = 1.0)
         L = 5
         hopdict = Dict{Int, Array}(
             1 => [ (t, 2), (t, 3), (tc, 5)],
@@ -150,8 +150,8 @@ end
 struct FRUSTRATION_4 <: Geometry
     L :: Int
     hopdict :: Dict
-    function FRUSTRATION_4(; t = -1.0)
-        L = 5
+    function FRUSTRATION_4(; t = 1.0)
+        L = 4
         hopdict = Dict{Int, Array}(
             1 => [ (t, 2), (t, 3), (t, 4)],
             2 => [ (t, 4)],
@@ -175,7 +175,7 @@ struct SD <: Geometry
     hopdict :: Dict
     scoup :: Float64
     dcoup :: Float64
-    function SD(X, Y; scoup = -1.0, dcoup = -1.0, RES = 1, ω = -1.0)
+    function SD(X, Y; scoup = 1.0, dcoup = 1.0, RES = 1, ω = 1.0)
         L = 2 * RES  + X * Y
         A = TwoD(X, Y)
 
@@ -201,7 +201,7 @@ struct SD <: Geometry
             newhop[nxt] = [ (ω, nxt + 1)]
 
             #drain
-            newhop[nxt + RES] = [ (ω, nxt + 1 + res)]
+            newhop[nxt + RES] = [ (ω, nxt + 1 + RES)]
         end 
         
         @show newhop
